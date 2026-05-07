@@ -1,0 +1,2446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OpsMirror by Modonix</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --cream: #f5efe1;
+  --cream-light: #fdfbf6;
+  --cream-mid: #ebe3d0;
+  --ink: #1a1a1a;
+  --ink-soft: #3d3a35;
+  --muted: #6b6258;
+  --muted-soft: #948a7d;
+  --border: #d9cfb8;
+  --border-soft: #e8dfc9;
+  --accent: #8b1a1a;
+  --accent-dark: #6b0f0f;
+  --accent-soft: #c4544a;
+  --green: #2d5016;
+  --green-soft: #5a7d3e;
+  --amber: #a85d00;
+  --shadow: 0 1px 2px rgba(60, 50, 35, 0.04), 0 4px 12px rgba(60, 50, 35, 0.06);
+  --shadow-lg: 0 4px 12px rgba(60, 50, 35, 0.08), 0 12px 32px rgba(60, 50, 35, 0.10);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: var(--cream);
+  color: var(--ink);
+  font-family: 'Geist', -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+.serif { font-family: 'Fraunces', Georgia, serif; font-feature-settings: "ss01"; letter-spacing: -0.01em; }
+.mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+
+button, input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; }
+
+button {
+  background: none;
+  border: 1px solid var(--border);
+  padding: 8px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  background: var(--cream-light);
+}
+button:hover { border-color: var(--ink); background: var(--cream-mid); }
+button.primary { background: var(--accent); color: var(--cream-light); border-color: var(--accent); }
+button.primary:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+button.danger { color: var(--accent); border-color: var(--accent-soft); }
+button.danger:hover { background: var(--accent); color: var(--cream-light); border-color: var(--accent); }
+button.ghost { border-color: transparent; background: transparent; }
+button.ghost:hover { background: var(--cream-mid); border-color: var(--border-soft); }
+button.sm { padding: 4px 10px; font-size: 12px; }
+button.icon { padding: 6px 8px; }
+
+input, select, textarea {
+  background: var(--cream-light);
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  border-radius: 4px;
+  width: 100%;
+  font-size: 14px;
+  transition: border-color 0.15s ease;
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--ink);
+}
+input[type="number"] { font-family: 'JetBrains Mono', monospace; }
+input[type="date"] { font-family: 'JetBrains Mono', monospace; }
+textarea { resize: vertical; min-height: 60px; font-family: inherit; }
+
+label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+}
+
+/* App layout */
+.app {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  background: var(--cream-light);
+  border-right: 1px solid var(--border);
+  padding: 24px 16px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.brand {
+  padding: 0 8px 24px;
+  border-bottom: 1px solid var(--border-soft);
+  margin-bottom: 16px;
+}
+.brand-mark {
+  font-family: 'Fraunces', serif;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+.brand-mark .accent { color: var(--accent); font-style: italic; font-weight: 500; }
+.brand-sub {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-top: 4px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--ink-soft);
+  margin-bottom: 2px;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+}
+.nav-item:hover { background: var(--cream-mid); }
+.nav-item.active {
+  background: var(--cream);
+  color: var(--ink);
+  font-weight: 500;
+  border-color: var(--border);
+}
+.nav-item .badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  background: var(--accent);
+  color: var(--cream-light);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+.sidebar-section {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted-soft);
+  padding: 16px 12px 8px;
+  font-weight: 600;
+}
+
+/* Main content */
+.main {
+  padding: 32px 40px 64px;
+  max-width: 1400px;
+}
+
+.view-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 28px;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.view-title {
+  font-family: 'Fraunces', serif;
+  font-size: 36px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.view-sub {
+  color: var(--muted);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+/* Cards */
+.card {
+  background: var(--cream-light);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 20px;
+  box-shadow: var(--shadow);
+}
+.card-title {
+  font-family: 'Fraunces', serif;
+  font-size: 18px;
+  font-weight: 500;
+  margin-bottom: 16px;
+  letter-spacing: -0.01em;
+}
+.card-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.card-title-row .card-title { margin-bottom: 0; }
+
+.grid { display: grid; gap: 16px; }
+.grid-2 { grid-template-columns: repeat(2, 1fr); }
+.grid-3 { grid-template-columns: repeat(3, 1fr); }
+.grid-4 { grid-template-columns: repeat(4, 1fr); }
+.grid-5 { grid-template-columns: repeat(5, 1fr); }
+
+@media (max-width: 1100px) {
+  .grid-4, .grid-5 { grid-template-columns: repeat(2, 1fr); }
+  .grid-3 { grid-template-columns: 1fr; }
+}
+
+/* KPI tiles */
+.kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.kpi-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-weight: 500;
+}
+.kpi-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 28px;
+  font-weight: 500;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+.kpi-value .unit { font-size: 14px; color: var(--muted); margin-left: 2px; }
+.kpi-sub {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+}
+.kpi-sub.up { color: var(--green); }
+.kpi-sub.down { color: var(--accent); }
+
+/* Tables */
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--cream-light);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+th {
+  text-align: left;
+  padding: 10px 14px;
+  background: var(--cream-mid);
+  border-bottom: 1px solid var(--border);
+  font-weight: 500;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 11px;
+  white-space: nowrap;
+}
+td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-soft);
+  vertical-align: top;
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--cream); }
+td.num { font-family: 'JetBrains Mono', monospace; text-align: right; white-space: nowrap; }
+td.tight { white-space: nowrap; }
+
+/* Tags / chips */
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--cream-mid);
+  border: 1px solid var(--border);
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.tag.bucket-engine { background: #e8e0d0; }
+.tag.bucket-auto { background: #d9e7d6; }
+.tag.bucket-short { background: #e7d9c9; }
+.tag.bucket-long { background: #d6e0e7; }
+
+.stage-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--cream-mid);
+  border: 1px solid var(--border);
+}
+.stage-pill::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.stage-pill.cold::before { background: #6b8caf; }
+.stage-pill.contacted::before { background: #c8a04a; }
+.stage-pill.replied::before { background: #d68a3a; }
+.stage-pill.meeting::before { background: #5a8a5a; }
+.stage-pill.proposal::before { background: var(--accent); }
+.stage-pill.negotiation::before { background: #8a4a8a; }
+.stage-pill.won::before { background: var(--green); }
+.stage-pill.lost::before { background: var(--muted-soft); }
+
+/* Goal bar */
+.goal-row {
+  display: grid;
+  grid-template-columns: 140px 60px 1fr 60px;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+.goal-row:last-child { border-bottom: none; }
+.goal-label { font-size: 13px; color: var(--ink-soft); }
+.goal-value { font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+.goal-bar {
+  height: 6px;
+  background: var(--cream-mid);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+.goal-bar-fill {
+  height: 100%;
+  background: var(--green-soft);
+  transition: width 0.3s ease;
+}
+.goal-bar-fill.over { background: var(--green); }
+.goal-bar-fill.under { background: var(--amber); }
+.goal-pct { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted); text-align: right; }
+
+/* Week navigator */
+.week-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--cream-light);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+.week-nav-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  padding: 0 12px;
+  font-weight: 500;
+}
+
+/* Modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 26, 26, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 24px;
+}
+.modal {
+  background: var(--cream-light);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 28px;
+  max-width: 560px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+}
+.modal.wide { max-width: 720px; }
+.modal-title {
+  font-family: 'Fraunces', serif;
+  font-size: 24px;
+  font-weight: 500;
+  margin-bottom: 6px;
+  letter-spacing: -0.01em;
+}
+.modal-sub { color: var(--muted); margin-bottom: 20px; font-size: 13px; }
+.form-row { margin-bottom: 14px; }
+.form-row-grid { display: grid; gap: 14px; grid-template-columns: 1fr 1fr; margin-bottom: 14px; }
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-soft);
+}
+
+/* Empty state */
+.empty {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--muted);
+}
+.empty-title {
+  font-family: 'Fraunces', serif;
+  font-size: 20px;
+  color: var(--ink-soft);
+  margin-bottom: 8px;
+}
+.empty-sub { font-size: 13px; }
+
+/* Cold prospects alert */
+.alert {
+  background: #f5e8d0;
+  border: 1px solid #d9b878;
+  border-left: 4px solid var(--amber);
+  border-radius: 4px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.alert-text { font-size: 13px; color: var(--ink-soft); }
+.alert-text strong { color: var(--amber); font-weight: 600; }
+.alert.alert-danger {
+  background: #efe0de;
+  border-color: var(--accent-soft);
+  border-left-color: var(--accent);
+}
+.alert.alert-danger .alert-text strong { color: var(--accent); }
+
+/* Activity feed */
+.activity-item {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-soft);
+  align-items: start;
+}
+.activity-item:last-child { border-bottom: none; }
+.activity-date {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  padding-top: 2px;
+}
+.activity-content { font-size: 13px; }
+.activity-content strong { font-weight: 500; }
+
+/* Reflection */
+.reflection-q {
+  font-family: 'Fraunces', serif;
+  font-size: 17px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  color: var(--ink);
+  font-style: italic;
+}
+
+/* Settings */
+.list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  margin-bottom: 6px;
+  background: var(--cream);
+}
+.list-item-name { font-weight: 500; }
+.list-item-meta { font-size: 12px; color: var(--muted); margin-left: 8px; }
+.list-item-actions { display: flex; gap: 6px; }
+
+/* Pipeline detail */
+.prospect-detail {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 24px;
+}
+@media (max-width: 1100px) { .prospect-detail { grid-template-columns: 1fr; } }
+
+.field-grid {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 10px 16px;
+  font-size: 13px;
+}
+.field-grid dt { color: var(--muted); }
+.field-grid dd { font-weight: 500; }
+
+/* Utility */
+.flex { display: flex; }
+.flex-between { display: flex; justify-content: space-between; align-items: center; }
+.gap-2 { gap: 8px; }
+.gap-3 { gap: 12px; }
+.gap-4 { gap: 16px; }
+.gap-6 { gap: 24px; }
+.mt-2 { margin-top: 8px; }
+.mt-3 { margin-top: 12px; }
+.mt-4 { margin-top: 16px; }
+.mt-6 { margin-top: 24px; }
+.mb-2 { margin-bottom: 8px; }
+.mb-3 { margin-bottom: 12px; }
+.mb-4 { margin-bottom: 16px; }
+.mb-6 { margin-bottom: 24px; }
+.text-muted { color: var(--muted); }
+.text-sm { font-size: 12px; }
+.text-xs { font-size: 11px; }
+.hidden { display: none !important; }
+.full-width { width: 100%; }
+.text-right { text-align: right; }
+hr.divider { border: none; border-top: 1px solid var(--border-soft); margin: 16px 0; }
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--ink);
+  color: var(--cream-light);
+  padding: 10px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  z-index: 200;
+  box-shadow: var(--shadow-lg);
+  animation: toastIn 0.2s ease;
+}
+@keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+@media (max-width: 768px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar { position: relative; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
+  .main { padding: 24px 16px; }
+  .grid-4, .grid-5 { grid-template-columns: 1fr; }
+  .form-row-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">Ops<span class="accent">Mirror</span></div>
+      <div class="brand-sub">by Modonix</div>
+    </div>
+
+    <div id="nav" class="nav">
+      <div class="nav-item" data-view="dashboard">
+        <span>Dashboard</span>
+      </div>
+      <div class="nav-item" data-view="daily">
+        <span>Daily Log</span>
+        <span class="badge" id="navDailyBadge"></span>
+      </div>
+      <div class="nav-item" data-view="pipeline">
+        <span>Pipeline</span>
+        <span class="badge" id="navPipelineBadge"></span>
+      </div>
+      <div class="nav-item" data-view="reflection">
+        <span>Reflection</span>
+      </div>
+      <div class="nav-item" data-view="settings">
+        <span>Settings</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section">Quick Add</div>
+    <div class="grid gap-2">
+      <button class="full-width" onclick="openDailyEntry()">+ Log Day</button>
+      <button class="full-width" onclick="openProspectModal()">+ New Prospect</button>
+      <button class="full-width" onclick="openActivityModal()">+ Log Activity</button>
+    </div>
+  </aside>
+
+  <main class="main" id="main">
+    <!-- Views render here -->
+  </main>
+</div>
+
+<div id="modalRoot"></div>
+<div id="toastRoot"></div>
+
+<script>
+/* ============================================================
+   STATE
+   ============================================================ */
+const STORAGE_KEY = 'opsmirror_v1';
+
+const DEFAULT_BUCKETS = [
+  'Existing Engine',
+  'Existing Automation/R&D',
+  'Short-Term Development',
+  'Long-Term Development'
+];
+
+const DEFAULT_STAGES = [
+  { id: 's_cold', name: 'Cold', defaultProb: 5, order: 1 },
+  { id: 's_contacted', name: 'Contacted', defaultProb: 10, order: 2 },
+  { id: 's_replied', name: 'Replied', defaultProb: 20, order: 3 },
+  { id: 's_meeting', name: 'Meeting Booked', defaultProb: 30, order: 4 },
+  { id: 's_proposal', name: 'Proposal Sent', defaultProb: 40, order: 5 },
+  { id: 's_negotiation', name: 'Negotiation', defaultProb: 60, order: 6 },
+  { id: 's_won', name: 'Closed Won', defaultProb: 100, order: 7 },
+  { id: 's_lost', name: 'Closed Lost', defaultProb: 0, order: 8 }
+];
+
+const DEFAULT_ACTIVITY_TYPES = [
+  { id: 'a_reply', name: 'Reply Received', countsAs: 'reply' },
+  { id: 'a_email_reply', name: 'Email Reply Sent', countsAs: 'email_reply' },
+  { id: 'a_meeting_booked', name: 'Meeting Booked', countsAs: 'meeting' },
+  { id: 'a_meeting_held', name: 'Meeting Held', countsAs: 'meeting_held' },
+  { id: 'a_proposal', name: 'Proposal Sent', countsAs: 'proposal' },
+  { id: 'a_won', name: 'Closed Won', countsAs: 'won' },
+  { id: 'a_lost', name: 'Closed Lost', countsAs: 'lost' },
+  { id: 'a_note', name: 'Note', countsAs: 'note' }
+];
+
+const DEFAULT_OUTBOUND_TYPES = [
+  { id: 'o_email', name: 'Cold Email', short: 'emails' },
+  { id: 'o_followup', name: 'Cold Follow-Up', short: 'follow-ups' },
+  { id: 'o_dm', name: 'Cold LinkedIn DM', short: 'DMs' },
+  { id: 'o_call', name: 'Cold Call', short: 'calls' },
+  { id: 'o_upwork', name: 'Upwork Proposal', short: 'Upwork' },
+  { id: 'o_other', name: 'Other Outbound', short: 'other' }
+];
+
+const DEFAULT_TARGETS = {
+  coldEmails: 25,
+  coldFollowUps: 10,
+  meetings: 2,
+  proposals: 1,
+  repliesReceived: 3,
+  weightedPipelineAdded: 5000
+};
+
+function newState() {
+  return {
+    version: '1.1',
+    clients: [{ id: 'c_modonix', name: 'Modonix Internal' }],
+    buckets: [...DEFAULT_BUCKETS],
+    stages: JSON.parse(JSON.stringify(DEFAULT_STAGES)),
+    activityTypes: JSON.parse(JSON.stringify(DEFAULT_ACTIVITY_TYPES)),
+    outboundTypes: JSON.parse(JSON.stringify(DEFAULT_OUTBOUND_TYPES)),
+    dailyLog: [],
+    prospects: [],
+    activities: [],
+    weeklyTargets: { ...DEFAULT_TARGETS },
+    reflections: []
+  };
+}
+
+let state = loadState();
+let currentView = 'dashboard';
+let currentWeekMonday = getMonday(new Date());
+let openProspectId = null;
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return newState();
+    const parsed = JSON.parse(raw);
+    // Migration: ensure all keys exist
+    const fresh = newState();
+    const merged = { ...fresh, ...parsed };
+    // Migrate weeklyTargets keys (renamed in v1.1)
+    if (merged.weeklyTargets) {
+      if (merged.weeklyTargets.emails != null && merged.weeklyTargets.coldEmails == null) {
+        merged.weeklyTargets.coldEmails = merged.weeklyTargets.emails;
+        delete merged.weeklyTargets.emails;
+      }
+      if (merged.weeklyTargets.followups != null && merged.weeklyTargets.coldFollowUps == null) {
+        merged.weeklyTargets.coldFollowUps = merged.weeklyTargets.followups;
+        delete merged.weeklyTargets.followups;
+      }
+      if (merged.weeklyTargets.newConversations != null && merged.weeklyTargets.repliesReceived == null) {
+        merged.weeklyTargets.repliesReceived = merged.weeklyTargets.newConversations;
+        delete merged.weeklyTargets.newConversations;
+      }
+      // Backfill missing target keys
+      Object.keys(DEFAULT_TARGETS).forEach(k => {
+        if (merged.weeklyTargets[k] == null) merged.weeklyTargets[k] = DEFAULT_TARGETS[k];
+      });
+    }
+    // Backfill outboundTypes if missing
+    if (!merged.outboundTypes || merged.outboundTypes.length === 0) {
+      merged.outboundTypes = JSON.parse(JSON.stringify(DEFAULT_OUTBOUND_TYPES));
+    }
+    return merged;
+  } catch (e) {
+    console.error('Failed to load state:', e);
+    return newState();
+  }
+}
+
+function saveState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (e) {
+    toast('Save failed: ' + e.message);
+  }
+}
+
+function uid(prefix) {
+  return prefix + '_' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
+}
+
+/* ============================================================
+   DATE UTILITIES
+   ============================================================ */
+function getMonday(d) {
+  const date = new Date(d);
+  date.setHours(0, 0, 0, 0);
+  const day = date.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  date.setDate(date.getDate() + diff);
+  return date;
+}
+
+function addDays(date, n) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + n);
+  return d;
+}
+
+function isoDate(d) {
+  const date = new Date(d);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + day;
+}
+
+function todayISO() { return isoDate(new Date()); }
+
+function formatDateShort(d) {
+  const date = new Date(d);
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function formatDateLong(d) {
+  const date = new Date(d);
+  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function weekRange(monday) {
+  const sunday = addDays(monday, 6);
+  return { start: isoDate(monday), end: isoDate(sunday), startDate: monday, endDate: sunday };
+}
+
+function isInWeek(dateStr, monday) {
+  const r = weekRange(monday);
+  return dateStr >= r.start && dateStr <= r.end;
+}
+
+function daysAgo(dateStr) {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const d = new Date(dateStr); d.setHours(0, 0, 0, 0);
+  return Math.floor((today - d) / (1000 * 60 * 60 * 24));
+}
+
+/* ============================================================
+   LOOKUPS
+   ============================================================ */
+function getClient(id) { return state.clients.find(c => c.id === id); }
+function getStage(id) { return state.stages.find(s => s.id === id); }
+function getActivityType(id) { return state.activityTypes.find(a => a.id === id); }
+function getProspect(id) { return state.prospects.find(p => p.id === id); }
+
+function bucketClass(bucket) {
+  if (bucket === 'Existing Engine') return 'bucket-engine';
+  if (bucket === 'Existing Automation/R&D') return 'bucket-auto';
+  if (bucket === 'Short-Term Development') return 'bucket-short';
+  if (bucket === 'Long-Term Development') return 'bucket-long';
+  return '';
+}
+
+function stageClass(stageName) {
+  const map = {
+    'Cold': 'cold', 'Contacted': 'contacted', 'Replied': 'replied',
+    'Meeting Booked': 'meeting', 'Proposal Sent': 'proposal',
+    'Negotiation': 'negotiation', 'Closed Won': 'won', 'Closed Lost': 'lost'
+  };
+  return map[stageName] || '';
+}
+
+function fmtDollars(n) {
+  if (!n && n !== 0) return '';
+  return '$' + Math.round(n).toLocaleString();
+}
+
+function fmtPct(n) {
+  if (!isFinite(n) || isNaN(n)) return '0%';
+  return Math.round(n) + '%';
+}
+
+/* ============================================================
+   COMPUTED METRICS
+   ============================================================ */
+function weekDailyEntries(monday) {
+  return state.dailyLog.filter(e => isInWeek(e.date, monday));
+}
+
+function weekActivities(monday) {
+  return state.activities.filter(a => isInWeek(a.date, monday));
+}
+
+function bucketHours(monday) {
+  const entries = weekDailyEntries(monday);
+  const out = {};
+  state.buckets.forEach(b => out[b] = 0);
+  entries.forEach(e => {
+    if (out[e.bucket] != null) out[e.bucket] += Number(e.hours || 0);
+    else out[e.bucket] = Number(e.hours || 0);
+  });
+  return out;
+}
+
+function clientHours(monday) {
+  const entries = weekDailyEntries(monday);
+  const out = {};
+  entries.forEach(e => {
+    const name = getClient(e.clientId)?.name || 'Unassigned';
+    out[name] = (out[name] || 0) + Number(e.hours || 0);
+  });
+  return out;
+}
+
+function daysLogged(monday) {
+  const entries = weekDailyEntries(monday);
+  const dates = new Set(entries.map(e => e.date));
+  return dates.size;
+}
+
+function pipelineCounts(monday) {
+  const acts = weekActivities(monday);
+  const counts = { reply: 0, email_reply: 0, meeting: 0, meeting_held: 0, proposal: 0, won: 0, lost: 0 };
+  acts.forEach(a => {
+    const t = getActivityType(a.typeId);
+    if (t && counts[t.countsAs] != null) counts[t.countsAs]++;
+  });
+  return counts;
+}
+
+function outboundCounts(monday) {
+  const entries = weekDailyEntries(monday).filter(e => e.bucket === 'Short-Term Development');
+  const out = {};
+  state.outboundTypes.forEach(t => out[t.id] = 0);
+  entries.forEach(e => {
+    if (!e.outbound) return;
+    Object.keys(e.outbound).forEach(k => {
+      out[k] = (out[k] || 0) + Number(e.outbound[k] || 0);
+    });
+  });
+  return out;
+}
+
+function weightedPipelineAddedThisWeek(monday) {
+  // Sum (prospect.dollarValue * probability) for prospects whose Proposal Sent activity falls in this week
+  const acts = weekActivities(monday);
+  let total = 0;
+  const seen = new Set();
+  acts.forEach(a => {
+    const t = getActivityType(a.typeId);
+    if (!t || t.countsAs !== 'proposal') return;
+    if (seen.has(a.prospectId)) return;
+    seen.add(a.prospectId);
+    const p = getProspect(a.prospectId);
+    if (!p) return;
+    const stage = getStage(p.stageId);
+    const prob = (p.probabilityOverride != null ? p.probabilityOverride : (stage?.defaultProb || 0)) / 100;
+    // Use activity's dollar value if recorded, otherwise prospect dollar value
+    const v = Number(a.dollarValue || p.dollarValue || 0);
+    total += v * prob;
+  });
+  return total;
+}
+
+function ghostProspects(thresholdDays = 30) {
+  return state.prospects.filter(p => {
+    const stage = getStage(p.stageId);
+    if (!stage || stage.name === 'Closed Won' || stage.name === 'Closed Lost') return false;
+    const last = lastTouchOf(p.id);
+    if (!last) return true;
+    return daysAgo(last) > thresholdDays;
+  });
+}
+
+function pipelineDollars(monday) {
+  const acts = weekActivities(monday);
+  let proposalsValue = 0;
+  let wonValue = 0;
+  acts.forEach(a => {
+    const t = getActivityType(a.typeId);
+    if (!t) return;
+    const v = Number(a.dollarValue || 0);
+    if (t.countsAs === 'proposal') proposalsValue += v;
+    if (t.countsAs === 'won') wonValue += v;
+  });
+  return { proposalsValue, wonValue };
+}
+
+function weightedPipelineNow() {
+  let total = 0;
+  state.prospects.forEach(p => {
+    const stage = getStage(p.stageId);
+    if (!stage) return;
+    if (stage.name === 'Closed Won' || stage.name === 'Closed Lost') return;
+    const prob = (p.probabilityOverride != null ? p.probabilityOverride : stage.defaultProb) / 100;
+    total += Number(p.dollarValue || 0) * prob;
+  });
+  return total;
+}
+
+function totalOpenPipeline() {
+  let total = 0;
+  state.prospects.forEach(p => {
+    const stage = getStage(p.stageId);
+    if (!stage || stage.name === 'Closed Won' || stage.name === 'Closed Lost') return;
+    total += Number(p.dollarValue || 0);
+  });
+  return total;
+}
+
+function lastTouchOf(prospectId) {
+  const acts = state.activities.filter(a => a.prospectId === prospectId);
+  if (acts.length === 0) {
+    const p = getProspect(prospectId);
+    return p?.createdAt || null;
+  }
+  acts.sort((a, b) => b.date.localeCompare(a.date));
+  return acts[0].date;
+}
+
+function coldProspects(thresholdDays = 14) {
+  return state.prospects.filter(p => {
+    const stage = getStage(p.stageId);
+    if (!stage || stage.name === 'Closed Won' || stage.name === 'Closed Lost') return false;
+    const last = lastTouchOf(p.id);
+    if (!last) return true;
+    return daysAgo(last) > thresholdDays;
+  });
+}
+
+
+
+/* ============================================================
+   RENDERING
+   ============================================================ */
+function el(tag, props = {}, ...children) {
+  const node = document.createElement(tag);
+  Object.entries(props).forEach(([k, v]) => {
+    if (k === 'class') node.className = v;
+    else if (k === 'html') node.innerHTML = v;
+    else if (k.startsWith('on') && typeof v === 'function') node.addEventListener(k.slice(2).toLowerCase(), v);
+    else if (v != null) node.setAttribute(k, v);
+  });
+  children.flat().forEach(c => {
+    if (c == null || c === false) return;
+    if (typeof c === 'string' || typeof c === 'number') node.appendChild(document.createTextNode(String(c)));
+    else node.appendChild(c);
+  });
+  return node;
+}
+
+function setView(view) {
+  currentView = view;
+  document.querySelectorAll('.nav-item').forEach(n => {
+    n.classList.toggle('active', n.dataset.view === view);
+  });
+  render();
+}
+
+function updateBadges() {
+  const cold = coldProspects().length;
+  document.getElementById('navPipelineBadge').textContent = cold > 0 ? cold : '';
+  document.getElementById('navPipelineBadge').style.display = cold > 0 ? '' : 'none';
+  const wkLogged = daysLogged(currentWeekMonday);
+  document.getElementById('navDailyBadge').textContent = wkLogged > 0 ? wkLogged : '';
+  document.getElementById('navDailyBadge').style.display = wkLogged > 0 ? '' : 'none';
+}
+
+function render() {
+  updateBadges();
+  const main = document.getElementById('main');
+  main.innerHTML = '';
+  if (currentView === 'dashboard') renderDashboard(main);
+  else if (currentView === 'daily') renderDaily(main);
+  else if (currentView === 'pipeline') renderPipeline(main);
+  else if (currentView === 'reflection') renderReflection(main);
+  else if (currentView === 'settings') renderSettings(main);
+}
+
+/* ============================================================
+   DASHBOARD VIEW
+   ============================================================ */
+function renderDashboard(main) {
+  const range = weekRange(currentWeekMonday);
+  const isCurrentWeek = isoDate(getMonday(new Date())) === isoDate(currentWeekMonday);
+  const buckets = bucketHours(currentWeekMonday);
+  const totalHours = Object.values(buckets).reduce((s, n) => s + n, 0);
+  const counts = pipelineCounts(currentWeekMonday);
+  const outbound = outboundCounts(currentWeekMonday);
+  const wAdded = weightedPipelineAddedThisWeek(currentWeekMonday);
+  const wPipeline = weightedPipelineNow();
+  const totalOpen = totalOpenPipeline();
+  const logged = daysLogged(currentWeekMonday);
+  const cold = coldProspects(14);
+  const ghosts = ghostProspects(30);
+
+  // Header
+  const header = el('div', { class: 'view-header' });
+  header.appendChild(el('div', {},
+    el('div', { class: 'view-title serif' }, 'Weekly Scoreboard'),
+    el('div', { class: 'view-sub' }, 'Week of ' + formatDateLong(currentWeekMonday) + ' to ' + formatDateLong(range.endDate))
+  ));
+  const navWrap = el('div', { class: 'flex gap-2' });
+  const weekNav = el('div', { class: 'week-nav' });
+  weekNav.appendChild(el('button', { class: 'sm icon ghost', onclick: () => { currentWeekMonday = addDays(currentWeekMonday, -7); render(); } }, '←'));
+  weekNav.appendChild(el('div', { class: 'week-nav-label' }, formatDateShort(currentWeekMonday)));
+  weekNav.appendChild(el('button', { class: 'sm icon ghost', onclick: () => { currentWeekMonday = addDays(currentWeekMonday, 7); render(); } }, '→'));
+  navWrap.appendChild(weekNav);
+  if (!isCurrentWeek) {
+    navWrap.appendChild(el('button', { class: 'sm', onclick: () => { currentWeekMonday = getMonday(new Date()); render(); } }, 'Today'));
+  }
+  header.appendChild(navWrap);
+  main.appendChild(header);
+
+  // Alerts
+  if (ghosts.length > 0) {
+    const ghostAlert = el('div', { class: 'alert alert-danger mb-3' },
+      el('div', { class: 'alert-text' },
+        el('strong', {}, ghosts.length + ' ghost prospect' + (ghosts.length === 1 ? '' : 's')),
+        ' silent for 30+ days. Send a final touch or mark Closed Lost. Your weighted pipeline is currently inflated.'
+      ),
+      el('button', { class: 'sm', onclick: () => setView('pipeline') }, 'Review →')
+    );
+    main.appendChild(ghostAlert);
+  }
+  if (cold.length > ghosts.length) {
+    const coldOnly = cold.length - ghosts.length;
+    const alert = el('div', { class: 'alert mb-4' },
+      el('div', { class: 'alert-text' },
+        el('strong', {}, coldOnly + ' cold prospect' + (coldOnly === 1 ? '' : 's')),
+        ' no activity in the last 14 to 30 days.'
+      ),
+      el('button', { class: 'sm', onclick: () => setView('pipeline') }, 'Review →')
+    );
+    main.appendChild(alert);
+  }
+
+  // Top KPI row
+  const kpiGrid = el('div', { class: 'grid grid-5 mb-4' });
+  kpiGrid.appendChild(makeKpi('Total Hours', totalHours.toFixed(1), 'h', logged + '/7 days logged'));
+  kpiGrid.appendChild(makeKpi('Weighted Added', fmtDollars(wAdded), '', 'this week from new proposals'));
+  kpiGrid.appendChild(makeKpi('Open Pipeline', fmtDollars(totalOpen), '', state.prospects.filter(p => { const s = getStage(p.stageId); return s && s.name !== 'Closed Won' && s.name !== 'Closed Lost'; }).length + ' active prospects'));
+  kpiGrid.appendChild(makeKpi('Weighted Pipeline', fmtDollars(wPipeline), '', 'probability-weighted forecast'));
+  kpiGrid.appendChild(makeKpi('Closed This Week', fmtDollars(pipelineDollars(currentWeekMonday).wonValue), '', counts.won + ' won, ' + counts.lost + ' lost'));
+  main.appendChild(kpiGrid);
+
+  // Two-column row: Bucket Totals + Pipeline KPIs
+  const row = el('div', { class: 'grid grid-2 mb-4' });
+  row.appendChild(renderBucketCard(buckets, totalHours));
+  row.appendChild(renderPipelineCard(outbound, counts, wAdded));
+  main.appendChild(row);
+
+  // Hours by Client (full width now since matrix is gone)
+  main.appendChild(renderClientCard());
+
+  // Recent activity
+  main.appendChild(renderRecentActivity());
+}
+
+function makeKpi(label, value, unit, sub) {
+  const card = el('div', { class: 'card' });
+  card.appendChild(el('div', { class: 'kpi' },
+    el('div', { class: 'kpi-label' }, label),
+    el('div', { class: 'kpi-value mono' }, String(value), unit ? el('span', { class: 'unit' }, unit) : null),
+    sub ? el('div', { class: 'kpi-sub' }, sub) : null
+  ));
+  return card;
+}
+
+function renderBucketCard(buckets, total) {
+  const card = el('div', { class: 'card' });
+  card.appendChild(el('div', { class: 'card-title-row' },
+    el('div', { class: 'card-title' }, 'Hours by Bucket'),
+    el('div', { class: 'mono text-sm text-muted' }, total.toFixed(1) + 'h total')
+  ));
+  state.buckets.forEach(b => {
+    const hours = buckets[b] || 0;
+    const pct = total > 0 ? (hours / total) * 100 : 0;
+    const row = el('div', { class: 'goal-row' });
+    row.appendChild(el('div', { class: 'goal-label' }, b));
+    row.appendChild(el('div', { class: 'goal-value' }, hours.toFixed(1) + 'h'));
+    const bar = el('div', { class: 'goal-bar' });
+    bar.appendChild(el('div', { class: 'goal-bar-fill', style: 'width:' + Math.min(pct, 100) + '%' }));
+    row.appendChild(bar);
+    row.appendChild(el('div', { class: 'goal-pct' }, fmtPct(pct)));
+    card.appendChild(row);
+  });
+  return card;
+}
+
+function renderPipelineCard(outbound, counts, wAdded) {
+  const t = state.weeklyTargets;
+  const card = el('div', { class: 'card' });
+  card.appendChild(el('div', { class: 'card-title' }, 'Outbound · Inbound · Pipeline'));
+
+  // OUTBOUND section (from daily Short-Term Dev logs)
+  card.appendChild(el('div', { class: 'kpi-label mb-2' }, 'Outbound (from daily logs)'));
+  const outboundRows = [
+    { label: 'Cold Emails', actual: outbound['o_email'] || 0, target: t.coldEmails },
+    { label: 'Cold Follow-Ups', actual: outbound['o_followup'] || 0, target: t.coldFollowUps }
+  ];
+  outboundRows.forEach(r => card.appendChild(makeGoalRow(r.label, r.actual, r.target)));
+
+  // Aggregate other outbound types as a single row
+  const otherOutbound = state.outboundTypes.filter(ot => ot.id !== 'o_email' && ot.id !== 'o_followup');
+  const otherCount = otherOutbound.reduce((s, ot) => s + (outbound[ot.id] || 0), 0);
+  if (otherCount > 0) {
+    const detail = otherOutbound.filter(ot => (outbound[ot.id] || 0) > 0).map(ot => (outbound[ot.id] || 0) + ' ' + ot.short).join(', ');
+    const row = el('div', { class: 'goal-row' });
+    row.appendChild(el('div', { class: 'goal-label' }, 'Other (DM/Call/Upwork)'));
+    row.appendChild(el('div', { class: 'goal-value' }, otherCount + ''));
+    row.appendChild(el('div', { class: 'text-xs text-muted', style: 'grid-column:span 2' }, detail));
+    card.appendChild(row);
+  }
+
+  // INBOUND section (from prospect activities)
+  card.appendChild(el('hr', { class: 'divider' }));
+  card.appendChild(el('div', { class: 'kpi-label mb-2' }, 'Inbound · Deep Funnel (from prospects)'));
+  const inboundRows = [
+    { label: 'Replies Received', actual: counts.reply, target: t.repliesReceived },
+    { label: 'Meetings Booked', actual: counts.meeting, target: t.meetings },
+    { label: 'Proposals Sent', actual: counts.proposal, target: t.proposals }
+  ];
+  inboundRows.forEach(r => card.appendChild(makeGoalRow(r.label, r.actual, r.target)));
+
+  // Weighted pipeline added target (the cash flow engine metric)
+  card.appendChild(el('hr', { class: 'divider' }));
+  const wRow = el('div', { class: 'goal-row' });
+  wRow.appendChild(el('div', { class: 'goal-label' }, 'Weighted $ Added'));
+  wRow.appendChild(el('div', { class: 'goal-value' }, fmtDollars(wAdded) + ' / ' + fmtDollars(t.weightedPipelineAdded)));
+  const bar = el('div', { class: 'goal-bar' });
+  const pct = t.weightedPipelineAdded > 0 ? (wAdded / t.weightedPipelineAdded) * 100 : 0;
+  const fc = pct >= 100 ? 'over' : pct >= 60 ? '' : 'under';
+  bar.appendChild(el('div', { class: 'goal-bar-fill ' + fc, style: 'width:' + Math.min(pct, 100) + '%' }));
+  wRow.appendChild(bar);
+  wRow.appendChild(el('div', { class: 'goal-pct' }, fmtPct(pct)));
+  card.appendChild(wRow);
+
+  // Conversion math
+  card.appendChild(el('hr', { class: 'divider' }));
+  const conv = el('div', { class: 'grid grid-3 gap-4' });
+  const totalCold = (outbound['o_email'] || 0) + (outbound['o_followup'] || 0);
+  const replyRate = totalCold > 0 ? (counts.reply / totalCold) * 100 : 0;
+  const meetingRate = counts.reply > 0 ? (counts.meeting / counts.reply) * 100 : 0;
+  const proposalRate = counts.meeting > 0 ? (counts.proposal / counts.meeting) * 100 : 0;
+  conv.appendChild(makeMiniStat('Reply Rate', fmtPct(replyRate), counts.reply + ' / ' + totalCold + ' cold'));
+  conv.appendChild(makeMiniStat('Meeting Rate', fmtPct(meetingRate), counts.meeting + ' / ' + counts.reply + ' replies'));
+  conv.appendChild(makeMiniStat('Proposal Rate', fmtPct(proposalRate), counts.proposal + ' / ' + counts.meeting + ' meetings'));
+  card.appendChild(conv);
+  return card;
+}
+
+function makeGoalRow(label, actual, target) {
+  const pct = target > 0 ? (actual / target) * 100 : 0;
+  const row = el('div', { class: 'goal-row' });
+  row.appendChild(el('div', { class: 'goal-label' }, label));
+  row.appendChild(el('div', { class: 'goal-value' }, actual + ' / ' + target));
+  const bar = el('div', { class: 'goal-bar' });
+  const fillClass = pct >= 100 ? 'over' : pct >= 60 ? '' : 'under';
+  bar.appendChild(el('div', { class: 'goal-bar-fill ' + fillClass, style: 'width:' + Math.min(pct, 100) + '%' }));
+  row.appendChild(bar);
+  row.appendChild(el('div', { class: 'goal-pct' }, fmtPct(pct)));
+  return row;
+}
+
+function makeMiniStat(label, value, sub) {
+  return el('div', {},
+    el('div', { class: 'kpi-label' }, label),
+    el('div', { class: 'mono', style: 'font-size:18px;font-weight:500' }, value),
+    el('div', { class: 'text-xs text-muted mono' }, sub)
+  );
+}
+
+
+
+function renderClientCard() {
+  const ch = clientHours(currentWeekMonday);
+  const total = Object.values(ch).reduce((s, n) => s + n, 0);
+  const card = el('div', { class: 'card' });
+  card.appendChild(el('div', { class: 'card-title' }, 'Hours by Client'));
+  if (total === 0) {
+    card.appendChild(el('div', { class: 'empty' }, el('div', { class: 'empty-sub' }, 'No hours logged this week yet.')));
+    return card;
+  }
+  const sorted = Object.entries(ch).sort((a, b) => b[1] - a[1]);
+  sorted.forEach(([name, hours]) => {
+    const pct = total > 0 ? (hours / total) * 100 : 0;
+    const row = el('div', { class: 'goal-row' });
+    row.appendChild(el('div', { class: 'goal-label' }, name));
+    row.appendChild(el('div', { class: 'goal-value' }, hours.toFixed(1) + 'h'));
+    const bar = el('div', { class: 'goal-bar' });
+    bar.appendChild(el('div', { class: 'goal-bar-fill', style: 'width:' + Math.min(pct, 100) + '%' }));
+    row.appendChild(bar);
+    row.appendChild(el('div', { class: 'goal-pct' }, fmtPct(pct)));
+    card.appendChild(row);
+  });
+  return card;
+}
+
+function renderRecentActivity() {
+  const card = el('div', { class: 'card mt-4' });
+  card.appendChild(el('div', { class: 'card-title' }, 'Recent Activity'));
+  const recent = [
+    ...state.dailyLog.map(e => ({ kind: 'daily', date: e.date, ...e })),
+    ...state.activities.map(a => ({ kind: 'activity', date: a.date, ...a }))
+  ].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8);
+
+  if (recent.length === 0) {
+    card.appendChild(el('div', { class: 'empty' },
+      el('div', { class: 'empty-title' }, 'Nothing logged yet'),
+      el('div', { class: 'empty-sub' }, 'Use Quick Add in the sidebar to start tracking.')
+    ));
+    return card;
+  }
+
+  recent.forEach(item => {
+    const wrap = el('div', { class: 'activity-item' });
+    wrap.appendChild(el('div', { class: 'activity-date' }, formatDateShort(item.date)));
+    if (item.kind === 'daily') {
+      const client = getClient(item.clientId);
+      const content = el('div', { class: 'activity-content' });
+      // For Short-Term Dev with outbound numbers, show the outbound summary
+      if (item.bucket === 'Short-Term Development' && item.outbound) {
+        const summary = state.outboundTypes
+          .filter(ot => (item.outbound[ot.id] || 0) > 0)
+          .map(ot => (item.outbound[ot.id] || 0) + ' ' + ot.short)
+          .join(', ');
+        content.appendChild(el('strong', {}, summary || (item.task || 'Outbound')));
+        content.appendChild(el('span', {}, ' · '));
+        content.appendChild(el('span', { class: 'tag ' + bucketClass(item.bucket) }, item.bucket));
+        if (item.task) content.appendChild(el('span', { class: 'text-muted text-sm' }, ' · ' + item.task));
+      } else {
+        content.appendChild(el('strong', {}, item.task || '(no task)'));
+        content.appendChild(el('span', {}, ' · '));
+        content.appendChild(el('span', { class: 'tag ' + bucketClass(item.bucket) }, item.bucket));
+        if (client) content.appendChild(el('span', { class: 'text-muted text-sm' }, ' · ' + client.name));
+        if (item.hours) content.appendChild(el('span', { class: 'text-muted text-sm mono' }, ' · ' + Number(item.hours || 0) + 'h'));
+      }
+      wrap.appendChild(content);
+    } else {
+      const t = getActivityType(item.typeId);
+      const p = getProspect(item.prospectId);
+      wrap.appendChild(el('div', { class: 'activity-content' },
+        el('strong', {}, t?.name || 'Activity'),
+        ' · ',
+        p ? el('span', {}, p.name + (p.company ? ' (' + p.company + ')' : '')) : el('span', { class: 'text-muted' }, '(deleted prospect)'),
+        item.dollarValue ? el('span', { class: 'mono text-sm text-muted' }, ' · ' + fmtDollars(item.dollarValue)) : null
+      ));
+    }
+    card.appendChild(wrap);
+  });
+  return card;
+}
+
+/* ============================================================
+   DAILY LOG VIEW
+   ============================================================ */
+let dailyFilter = 'all'; // all | week | month
+
+function renderDaily(main) {
+  const header = el('div', { class: 'view-header' });
+  header.appendChild(el('div', {},
+    el('div', { class: 'view-title serif' }, 'Daily Log'),
+    el('div', { class: 'view-sub' }, 'Existing Engine, Automation R&D, and Long-Term log hours and tasks. Short-Term Development logs outbound numbers.')
+  ));
+  header.appendChild(el('button', { class: 'primary', onclick: () => openDailyEntry() }, '+ Log Day'));
+  main.appendChild(header);
+
+  // Filters
+  const filters = el('div', { class: 'flex gap-2 mb-4' });
+  ['all', 'week', 'month'].forEach(f => {
+    filters.appendChild(el('button', {
+      class: 'sm' + (dailyFilter === f ? ' primary' : ''),
+      onclick: () => { dailyFilter = f; render(); }
+    }, f === 'all' ? 'All Time' : f === 'week' ? 'This Week' : 'This Month'));
+  });
+  main.appendChild(filters);
+
+  let entries = [...state.dailyLog].sort((a, b) => b.date.localeCompare(a.date));
+  if (dailyFilter === 'week') entries = entries.filter(e => isInWeek(e.date, currentWeekMonday));
+  if (dailyFilter === 'month') {
+    const now = new Date(); const ym = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+    entries = entries.filter(e => e.date.startsWith(ym));
+  }
+
+  if (entries.length === 0) {
+    main.appendChild(el('div', { class: 'card empty' },
+      el('div', { class: 'empty-title' }, 'No entries yet'),
+      el('div', { class: 'empty-sub' }, 'Click "+ Log Day" to add your first entry.')
+    ));
+    return;
+  }
+
+  const wrap = el('div', { class: 'table-wrap' });
+  const table = el('table');
+  const thead = el('thead', {}, el('tr', {},
+    el('th', {}, 'Date'),
+    el('th', {}, 'Bucket'),
+    el('th', {}, 'Client'),
+    el('th', {}, 'Task / Output'),
+    el('th', {}, 'Outbound'),
+    el('th', {}, 'Hours'),
+    el('th', {}, '')
+  ));
+  table.appendChild(thead);
+  const tbody = el('tbody');
+  entries.forEach(e => {
+    const client = getClient(e.clientId);
+    const tr = el('tr');
+    tr.appendChild(el('td', { class: 'tight mono text-sm' }, formatDateShort(e.date)));
+    tr.appendChild(el('td', {}, el('span', { class: 'tag ' + bucketClass(e.bucket) }, e.bucket)));
+    tr.appendChild(el('td', {}, client?.name || el('span', { class: 'text-muted' }, '-')));
+    const taskCell = el('td', {});
+    if (e.task) taskCell.appendChild(el('div', {}, el('strong', {}, e.task)));
+    if (e.output) taskCell.appendChild(el('div', { class: 'text-muted text-sm' }, e.output));
+    if (!e.task && !e.output) taskCell.appendChild(el('span', { class: 'text-muted' }, '-'));
+    tr.appendChild(taskCell);
+    // Outbound column
+    const obCell = el('td', { class: 'text-sm' });
+    if (e.bucket === 'Short-Term Development' && e.outbound) {
+      const summary = state.outboundTypes
+        .filter(ot => (e.outbound[ot.id] || 0) > 0)
+        .map(ot => el('div', { class: 'mono text-xs' }, (e.outbound[ot.id] || 0) + ' ' + ot.short));
+      if (summary.length === 0) obCell.appendChild(el('span', { class: 'text-muted' }, '-'));
+      else summary.forEach(s => obCell.appendChild(s));
+    } else {
+      obCell.appendChild(el('span', { class: 'text-muted' }, '-'));
+    }
+    tr.appendChild(obCell);
+    tr.appendChild(el('td', { class: 'num mono' }, e.hours ? Number(e.hours).toFixed(1) + 'h' : el('span', { class: 'text-muted' }, '-')));
+    const actions = el('td', { class: 'tight' });
+    const editBtn = el('button', { class: 'sm ghost' }, 'Edit');
+    editBtn.addEventListener('click', () => openDailyEntry(e.id));
+    actions.appendChild(editBtn);
+    const delBtn = el('button', { class: 'sm ghost danger' }, 'Del');
+    delBtn.addEventListener('click', () => deleteDaily(e.id));
+    actions.appendChild(delBtn);
+    tr.appendChild(actions);
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  main.appendChild(wrap);
+}
+
+function deleteDaily(id) {
+  if (!confirm('Delete this entry?')) return;
+  state.dailyLog = state.dailyLog.filter(e => e.id !== id);
+  saveState();
+  render();
+  toast('Entry deleted');
+}
+
+/* ============================================================
+   PIPELINE VIEW
+   ============================================================ */
+let pipelineFilter = 'open'; // open | all | won | lost
+
+function renderPipeline(main) {
+  if (openProspectId) return renderProspectDetail(main);
+
+  const header = el('div', { class: 'view-header' });
+  header.appendChild(el('div', {},
+    el('div', { class: 'view-title serif' }, 'Pipeline'),
+    el('div', { class: 'view-sub' }, 'Open: ' + fmtDollars(totalOpenPipeline()) + ' · Weighted: ' + fmtDollars(weightedPipelineNow()))
+  ));
+  const actions = el('div', { class: 'flex gap-2' });
+  const logBtn = el('button', {}, 'Log Activity');
+  logBtn.addEventListener('click', () => openActivityModal());
+  actions.appendChild(logBtn);
+  const newBtn = el('button', { class: 'primary' }, '+ New Prospect');
+  newBtn.addEventListener('click', () => openProspectModal());
+  actions.appendChild(newBtn);
+  header.appendChild(actions);
+  main.appendChild(header);
+
+  // Funnel summary
+  const funnel = el('div', { class: 'card mb-4' });
+  funnel.appendChild(el('div', { class: 'card-title' }, 'Funnel'));
+  const funnelRow = el('div', { class: 'flex gap-3', style: 'flex-wrap:wrap' });
+  state.stages.filter(s => s.name !== 'Closed Won' && s.name !== 'Closed Lost').sort((a, b) => a.order - b.order).forEach(s => {
+    const ps = state.prospects.filter(p => p.stageId === s.id);
+    const value = ps.reduce((sum, p) => sum + Number(p.dollarValue || 0), 0);
+    funnelRow.appendChild(el('div', { class: 'card', style: 'flex:1;min-width:140px;padding:14px' },
+      el('div', { class: 'kpi-label' }, s.name),
+      el('div', { class: 'mono', style: 'font-size:20px;font-weight:500' }, ps.length),
+      el('div', { class: 'text-xs mono text-muted' }, fmtDollars(value))
+    ));
+  });
+  funnel.appendChild(funnelRow);
+  main.appendChild(funnel);
+
+  // Filters
+  const filters = el('div', { class: 'flex gap-2 mb-4' });
+  ['open', 'all', 'won', 'lost'].forEach(f => {
+    filters.appendChild(el('button', {
+      class: 'sm' + (pipelineFilter === f ? ' primary' : ''),
+      onclick: () => { pipelineFilter = f; render(); }
+    }, f.charAt(0).toUpperCase() + f.slice(1)));
+  });
+  main.appendChild(filters);
+
+  let prospects = [...state.prospects];
+  if (pipelineFilter === 'open') prospects = prospects.filter(p => { const s = getStage(p.stageId); return s && s.name !== 'Closed Won' && s.name !== 'Closed Lost'; });
+  if (pipelineFilter === 'won') prospects = prospects.filter(p => getStage(p.stageId)?.name === 'Closed Won');
+  if (pipelineFilter === 'lost') prospects = prospects.filter(p => getStage(p.stageId)?.name === 'Closed Lost');
+
+  if (prospects.length === 0) {
+    main.appendChild(el('div', { class: 'card empty' },
+      el('div', { class: 'empty-title' }, 'No prospects yet'),
+      el('div', { class: 'empty-sub' }, 'Add your first prospect to start tracking.')
+    ));
+    return;
+  }
+
+  // Sort by stage order, then by dollar value desc
+  prospects.sort((a, b) => {
+    const sa = getStage(a.stageId)?.order || 999;
+    const sb = getStage(b.stageId)?.order || 999;
+    if (sa !== sb) return sa - sb;
+    return Number(b.dollarValue || 0) - Number(a.dollarValue || 0);
+  });
+
+  const wrap = el('div', { class: 'table-wrap' });
+  const table = el('table');
+  table.appendChild(el('thead', {}, el('tr', {},
+    el('th', {}, 'Prospect'),
+    el('th', {}, 'Stage'),
+    el('th', {}, 'Value'),
+    el('th', {}, 'Probability'),
+    el('th', {}, 'Weighted'),
+    el('th', {}, 'Last Touch'),
+    el('th', {}, 'Source'),
+    el('th', {}, '')
+  )));
+  const tbody = el('tbody');
+  prospects.forEach(p => {
+    const stage = getStage(p.stageId);
+    const prob = p.probabilityOverride != null ? p.probabilityOverride : (stage?.defaultProb || 0);
+    const weighted = (Number(p.dollarValue || 0) * prob) / 100;
+    const last = lastTouchOf(p.id);
+    const ageDays = last ? daysAgo(last) : null;
+    const isCold = ageDays != null && ageDays > 14 && stage && stage.name !== 'Closed Won' && stage.name !== 'Closed Lost';
+
+    const tr = el('tr');
+    const nameCell = el('td');
+    const nameDiv = el('div', { style: 'cursor:pointer', onclick: () => { openProspectId = p.id; render(); } });
+    nameDiv.appendChild(el('strong', {}, p.name));
+    if (p.company) nameDiv.appendChild(el('div', { class: 'text-muted text-sm' }, p.company));
+    nameCell.appendChild(nameDiv);
+    tr.appendChild(nameCell);
+    tr.appendChild(el('td', {}, el('span', { class: 'stage-pill ' + stageClass(stage?.name) }, stage?.name || '-')));
+    tr.appendChild(el('td', { class: 'num mono' }, fmtDollars(Number(p.dollarValue || 0))));
+    tr.appendChild(el('td', { class: 'num mono' }, prob + '%'));
+    tr.appendChild(el('td', { class: 'num mono' }, fmtDollars(weighted)));
+    const touchCell = el('td', { class: 'tight mono text-sm' });
+    if (last) {
+      touchCell.appendChild(el('div', { style: isCold ? 'color:var(--amber);font-weight:500' : '' }, formatDateShort(last)));
+      touchCell.appendChild(el('div', { class: 'text-xs text-muted' }, ageDays + 'd ago'));
+    } else {
+      touchCell.appendChild(el('span', { class: 'text-muted' }, '-'));
+    }
+    tr.appendChild(touchCell);
+    tr.appendChild(el('td', { class: 'text-sm' }, p.source || el('span', { class: 'text-muted' }, '-')));
+    const acts = el('td', { class: 'tight' });
+    const logActBtn = el('button', { class: 'sm ghost' }, 'Log');
+    logActBtn.addEventListener('click', () => openActivityModal(p.id));
+    acts.appendChild(logActBtn);
+    const editBtn = el('button', { class: 'sm ghost' }, 'Edit');
+    editBtn.addEventListener('click', () => openProspectModal(p.id));
+    acts.appendChild(editBtn);
+    tr.appendChild(acts);
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  main.appendChild(wrap);
+}
+
+function renderProspectDetail(main) {
+  const p = getProspect(openProspectId);
+  if (!p) { openProspectId = null; render(); return; }
+  const stage = getStage(p.stageId);
+  const prob = p.probabilityOverride != null ? p.probabilityOverride : (stage?.defaultProb || 0);
+  const weighted = (Number(p.dollarValue || 0) * prob) / 100;
+  const acts = state.activities.filter(a => a.prospectId === p.id).sort((a, b) => b.date.localeCompare(a.date));
+  const last = lastTouchOf(p.id);
+  const ageDays = last ? daysAgo(last) : null;
+
+  const header = el('div', { class: 'view-header' });
+  header.appendChild(el('div', {},
+    el('button', { class: 'sm ghost mb-2', onclick: () => { openProspectId = null; render(); } }, '← Back to Pipeline'),
+    el('div', { class: 'view-title serif' }, p.name),
+    p.company ? el('div', { class: 'view-sub' }, p.company) : null
+  ));
+  const acts2 = el('div', { class: 'flex gap-2' });
+  const logBtn2 = el('button', { class: 'primary' }, '+ Log Activity');
+  logBtn2.addEventListener('click', () => openActivityModal(p.id));
+  acts2.appendChild(logBtn2);
+  const editBtn2 = el('button', {}, 'Edit');
+  editBtn2.addEventListener('click', () => openProspectModal(p.id));
+  acts2.appendChild(editBtn2);
+  const delBtn = el('button', { class: 'danger' }, 'Delete');
+  delBtn.addEventListener('click', () => {
+    if (!confirm('Delete prospect ' + p.name + '? This will also delete all activities for this prospect.')) return;
+    state.prospects = state.prospects.filter(x => x.id !== p.id);
+    state.activities = state.activities.filter(a => a.prospectId !== p.id);
+    saveState();
+    openProspectId = null;
+    render();
+    toast('Prospect deleted');
+  });
+  acts2.appendChild(delBtn);
+  header.appendChild(acts2);
+  main.appendChild(header);
+
+  const grid = el('div', { class: 'prospect-detail' });
+
+  // Left: activity log
+  const left = el('div', { class: 'card' });
+  left.appendChild(el('div', { class: 'card-title' }, 'Activity Log'));
+  if (acts.length === 0) {
+    left.appendChild(el('div', { class: 'empty' }, el('div', { class: 'empty-sub' }, 'No activities logged yet.')));
+  } else {
+    acts.forEach(a => {
+      const t = getActivityType(a.typeId);
+      const item = el('div', { class: 'activity-item' });
+      item.appendChild(el('div', { class: 'activity-date' }, formatDateShort(a.date)));
+      const content = el('div', { class: 'activity-content' });
+      content.appendChild(el('strong', {}, t?.name || 'Activity'));
+      if (a.dollarValue) content.appendChild(el('span', { class: 'mono text-muted text-sm' }, ' · ' + fmtDollars(a.dollarValue)));
+      if (a.note) content.appendChild(el('div', { class: 'text-sm text-muted mt-2' }, a.note));
+      const delA = el('button', { class: 'sm ghost danger', style: 'margin-top:4px' }, 'Delete');
+      delA.addEventListener('click', () => {
+        if (!confirm('Delete this activity?')) return;
+        state.activities = state.activities.filter(x => x.id !== a.id);
+        saveState(); render(); toast('Activity deleted');
+      });
+      content.appendChild(el('div', { class: 'mt-2' }, delA));
+      item.appendChild(content);
+      left.appendChild(item);
+    });
+  }
+  grid.appendChild(left);
+
+  // Right: details
+  const right = el('div', { class: 'card' });
+  right.appendChild(el('div', { class: 'card-title' }, 'Details'));
+  const dl = el('dl', { class: 'field-grid' });
+  dl.appendChild(el('dt', {}, 'Stage'));
+  dl.appendChild(el('dd', {}, el('span', { class: 'stage-pill ' + stageClass(stage?.name) }, stage?.name || '-')));
+  dl.appendChild(el('dt', {}, 'Value'));
+  dl.appendChild(el('dd', { class: 'mono' }, fmtDollars(Number(p.dollarValue || 0))));
+  dl.appendChild(el('dt', {}, 'Probability'));
+  dl.appendChild(el('dd', { class: 'mono' }, prob + '%' + (p.probabilityOverride != null ? ' (override)' : ' (default)')));
+  dl.appendChild(el('dt', {}, 'Weighted'));
+  dl.appendChild(el('dd', { class: 'mono' }, fmtDollars(weighted)));
+  dl.appendChild(el('dt', {}, 'Source'));
+  dl.appendChild(el('dd', {}, p.source || '-'));
+  dl.appendChild(el('dt', {}, 'Created'));
+  dl.appendChild(el('dd', { class: 'mono' }, p.createdAt ? formatDateShort(p.createdAt) : '-'));
+  dl.appendChild(el('dt', {}, 'Last Touch'));
+  dl.appendChild(el('dd', { class: 'mono', style: ageDays != null && ageDays > 14 ? 'color:var(--amber);font-weight:500' : '' },
+    last ? formatDateShort(last) + ' (' + ageDays + 'd ago)' : '-'));
+  right.appendChild(dl);
+  if (p.notes) {
+    right.appendChild(el('hr', { class: 'divider' }));
+    right.appendChild(el('div', { class: 'kpi-label mb-2' }, 'Notes'));
+    right.appendChild(el('div', { class: 'text-sm', style: 'white-space:pre-wrap' }, p.notes));
+  }
+  grid.appendChild(right);
+
+  main.appendChild(grid);
+}
+
+/* ============================================================
+   REFLECTION VIEW
+   ============================================================ */
+function renderReflection(main) {
+  const weekKey = isoDate(currentWeekMonday);
+  let entry = state.reflections.find(r => r.weekOf === weekKey);
+  if (!entry) {
+    entry = { weekOf: weekKey, leverage: '', wasted: '', nextWeek: '' };
+  }
+
+  const header = el('div', { class: 'view-header' });
+  header.appendChild(el('div', {},
+    el('div', { class: 'view-title serif' }, 'Weekly Reflection'),
+    el('div', { class: 'view-sub' }, 'Week of ' + formatDateLong(currentWeekMonday) + '. Three questions, no journaling marathon.')
+  ));
+  const wn = el('div', { class: 'week-nav' });
+  wn.appendChild(el('button', { class: 'sm icon ghost', onclick: () => { currentWeekMonday = addDays(currentWeekMonday, -7); render(); } }, '←'));
+  wn.appendChild(el('div', { class: 'week-nav-label' }, formatDateShort(currentWeekMonday)));
+  wn.appendChild(el('button', { class: 'sm icon ghost', onclick: () => { currentWeekMonday = addDays(currentWeekMonday, 7); render(); } }, '→'));
+  header.appendChild(wn);
+  main.appendChild(header);
+
+  const card = el('div', { class: 'card' });
+
+  const q1 = el('div', { class: 'mb-6' });
+  q1.appendChild(el('div', { class: 'reflection-q' }, '1. What created the most leverage?'));
+  const ta1 = el('textarea', { rows: 3, placeholder: 'e.g. Pricing dashboard automation' });
+  ta1.value = entry.leverage || '';
+  q1.appendChild(ta1);
+  card.appendChild(q1);
+
+  const q2 = el('div', { class: 'mb-6' });
+  q2.appendChild(el('div', { class: 'reflection-q' }, '2. What wasted time?'));
+  const ta2 = el('textarea', { rows: 3, placeholder: 'e.g. Overthinking automation specs' });
+  ta2.value = entry.wasted || '';
+  q2.appendChild(ta2);
+  card.appendChild(q2);
+
+  const q3 = el('div', { class: 'mb-4' });
+  q3.appendChild(el('div', { class: 'reflection-q' }, '3. What must happen next week?'));
+  const ta3 = el('textarea', { rows: 3, placeholder: 'e.g. 25 targeted outreach emails to industrial distributors' });
+  ta3.value = entry.nextWeek || '';
+  q3.appendChild(ta3);
+  card.appendChild(q3);
+
+  const saveBtn = el('button', { class: 'primary' }, 'Save Reflection');
+  saveBtn.addEventListener('click', () => {
+    const idx = state.reflections.findIndex(r => r.weekOf === weekKey);
+    const data = { weekOf: weekKey, leverage: ta1.value, wasted: ta2.value, nextWeek: ta3.value };
+    if (idx >= 0) state.reflections[idx] = data;
+    else state.reflections.push(data);
+    saveState();
+    toast('Reflection saved');
+    render();
+  });
+  card.appendChild(saveBtn);
+  main.appendChild(card);
+
+  // Past reflections
+  const past = state.reflections.filter(r => r.weekOf !== weekKey).sort((a, b) => b.weekOf.localeCompare(a.weekOf));
+  if (past.length > 0) {
+    main.appendChild(el('div', { class: 'mt-6 mb-3 serif', style: 'font-size:20px;font-weight:500' }, 'Past Reflections'));
+    past.forEach(r => {
+      const c = el('div', { class: 'card mb-3' });
+      c.appendChild(el('div', { class: 'card-title-row' },
+        el('div', { class: 'card-title' }, 'Week of ' + formatDateLong(r.weekOf)),
+        el('button', { class: 'sm ghost', onclick: () => { currentWeekMonday = getMonday(new Date(r.weekOf)); render(); } }, 'Open')
+      ));
+      if (r.leverage) c.appendChild(el('div', { class: 'mb-3' }, el('div', { class: 'kpi-label mb-2' }, 'Leverage'), el('div', { class: 'text-sm' }, r.leverage)));
+      if (r.wasted) c.appendChild(el('div', { class: 'mb-3' }, el('div', { class: 'kpi-label mb-2' }, 'Wasted'), el('div', { class: 'text-sm' }, r.wasted)));
+      if (r.nextWeek) c.appendChild(el('div', {}, el('div', { class: 'kpi-label mb-2' }, 'Next Week'), el('div', { class: 'text-sm' }, r.nextWeek)));
+      main.appendChild(c);
+    });
+  }
+}
+
+/* ============================================================
+   SETTINGS VIEW
+   ============================================================ */
+function renderSettings(main) {
+  const header = el('div', { class: 'view-header' });
+  header.appendChild(el('div', {},
+    el('div', { class: 'view-title serif' }, 'Settings'),
+    el('div', { class: 'view-sub' }, 'Configure clients, pipeline stages, and weekly targets. All data stays in your browser.')
+  ));
+  main.appendChild(header);
+
+  // Clients
+  main.appendChild(renderClientsSettings());
+  // Stages
+  main.appendChild(renderStagesSettings());
+  // Targets
+  main.appendChild(renderTargetsSettings());
+  // Outbound types (Short-Term Dev daily form)
+  main.appendChild(renderOutboundTypesSettings());
+  // Activity types
+  main.appendChild(renderActivityTypesSettings());
+  // Data export/import
+  main.appendChild(renderDataSettings());
+}
+
+function renderClientsSettings() {
+  const card = el('div', { class: 'card mb-4' });
+  card.appendChild(el('div', { class: 'card-title-row' },
+    el('div', { class: 'card-title' }, 'Clients'),
+    el('div', { class: 'text-sm text-muted' }, state.clients.length + ' total')
+  ));
+  state.clients.forEach(c => {
+    const item = el('div', { class: 'list-item' });
+    item.appendChild(el('div', {}, el('span', { class: 'list-item-name' }, c.name)));
+    const acts = el('div', { class: 'list-item-actions' });
+    const renameBtn = el('button', { class: 'sm ghost' }, 'Rename');
+    renameBtn.addEventListener('click', () => {
+      const n = prompt('Rename client:', c.name);
+      if (n && n.trim()) { c.name = n.trim(); saveState(); render(); }
+    });
+    acts.appendChild(renameBtn);
+    const delBtn = el('button', { class: 'sm ghost danger' }, 'Delete');
+    delBtn.addEventListener('click', () => {
+      const used = state.dailyLog.some(e => e.clientId === c.id);
+      if (used && !confirm('Client "' + c.name + '" is used in daily log entries. Delete anyway? (Entries will show as Unassigned)')) return;
+      state.clients = state.clients.filter(x => x.id !== c.id);
+      saveState(); render(); toast('Client deleted');
+    });
+    acts.appendChild(delBtn);
+    item.appendChild(acts);
+    card.appendChild(item);
+  });
+  // Add client form
+  const addRow = el('div', { class: 'flex gap-2 mt-3' });
+  const input = el('input', { type: 'text', placeholder: 'Add new client (e.g., Wright Tool)' });
+  const addBtn = el('button', { class: 'primary' }, 'Add');
+  const doAdd = () => {
+    const name = input.value.trim();
+    if (!name) return;
+    if (state.clients.some(c => c.name.toLowerCase() === name.toLowerCase())) {
+      toast('Client already exists'); return;
+    }
+    state.clients.push({ id: uid('c'), name });
+    saveState(); render(); toast('Client added');
+  };
+  addBtn.addEventListener('click', doAdd);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') doAdd(); });
+  addRow.appendChild(input);
+  addRow.appendChild(addBtn);
+  card.appendChild(addRow);
+  return card;
+}
+
+function renderStagesSettings() {
+  const card = el('div', { class: 'card mb-4' });
+  card.appendChild(el('div', { class: 'card-title' }, 'Pipeline Stages'));
+  card.appendChild(el('div', { class: 'text-sm text-muted mb-3' }, 'Default probability is used when prospects don\'t have an override.'));
+  state.stages.sort((a, b) => a.order - b.order).forEach(s => {
+    const item = el('div', { class: 'list-item' });
+    item.appendChild(el('div', {},
+      el('span', { class: 'stage-pill ' + stageClass(s.name) }, s.name),
+      el('span', { class: 'list-item-meta mono' }, 'default ' + s.defaultProb + '%')
+    ));
+    const acts = el('div', { class: 'list-item-actions' });
+    const editBtn = el('button', { class: 'sm ghost' }, 'Edit');
+    editBtn.addEventListener('click', () => {
+      const newName = prompt('Stage name:', s.name);
+      if (newName === null) return;
+      const newProb = prompt('Default probability (0-100):', s.defaultProb);
+      if (newProb === null) return;
+      s.name = newName.trim() || s.name;
+      const np = parseInt(newProb, 10);
+      if (!isNaN(np) && np >= 0 && np <= 100) s.defaultProb = np;
+      saveState(); render();
+    });
+    acts.appendChild(editBtn);
+    const delBtn = el('button', { class: 'sm ghost danger' }, 'Delete');
+    delBtn.addEventListener('click', () => {
+      const used = state.prospects.some(p => p.stageId === s.id);
+      if (used) { alert('Cannot delete stage in use by prospects.'); return; }
+      state.stages = state.stages.filter(x => x.id !== s.id);
+      saveState(); render();
+    });
+    acts.appendChild(delBtn);
+    item.appendChild(acts);
+    card.appendChild(item);
+  });
+  // Add stage
+  const addBtn = el('button', { class: 'mt-3' }, '+ Add Stage');
+  addBtn.addEventListener('click', () => {
+    const name = prompt('Stage name:');
+    if (!name) return;
+    const prob = prompt('Default probability (0-100):', '20');
+    const np = parseInt(prob, 10);
+    if (isNaN(np) || np < 0 || np > 100) { alert('Invalid probability'); return; }
+    const order = (state.stages.reduce((m, x) => Math.max(m, x.order), 0)) + 1;
+    state.stages.push({ id: uid('s'), name: name.trim(), defaultProb: np, order });
+    saveState(); render();
+  });
+  card.appendChild(addBtn);
+  return card;
+}
+
+function renderTargetsSettings() {
+  const card = el('div', { class: 'card mb-4' });
+  card.appendChild(el('div', { class: 'card-title' }, 'Weekly Targets'));
+  card.appendChild(el('div', { class: 'text-sm text-muted mb-3' }, 'Outbound targets are volume goals. Weighted Pipeline Added is your real cash-flow KPI.'));
+  const fields = [
+    { key: 'coldEmails', label: 'Cold Emails Sent', step: 1 },
+    { key: 'coldFollowUps', label: 'Cold Follow-Ups', step: 1 },
+    { key: 'repliesReceived', label: 'Replies Received', step: 1 },
+    { key: 'meetings', label: 'Meetings Booked', step: 1 },
+    { key: 'proposals', label: 'Proposals Sent', step: 1 },
+    { key: 'weightedPipelineAdded', label: 'Weighted $ Added ($)', step: 500 }
+  ];
+  const grid = el('div', { class: 'grid grid-3 gap-3' });
+  fields.forEach(f => {
+    const wrap = el('div', { class: 'form-row' });
+    wrap.appendChild(el('label', {}, f.label));
+    const input = el('input', { type: 'number', min: '0', step: f.step });
+    input.value = state.weeklyTargets[f.key];
+    input.addEventListener('change', () => {
+      const n = parseFloat(input.value);
+      if (!isNaN(n) && n >= 0) { state.weeklyTargets[f.key] = n; saveState(); toast('Target saved'); }
+    });
+    wrap.appendChild(input);
+    grid.appendChild(wrap);
+  });
+  card.appendChild(grid);
+  return card;
+}
+
+function renderOutboundTypesSettings() {
+  const card = el('div', { class: 'card mb-4' });
+  card.appendChild(el('div', { class: 'card-title' }, 'Outbound Types'));
+  card.appendChild(el('div', { class: 'text-sm text-muted mb-3' }, 'These appear as number inputs on Short-Term Development daily entries. Short label shows in summaries (e.g. "12 emails").'));
+  state.outboundTypes.forEach(ot => {
+    const item = el('div', { class: 'list-item' });
+    item.appendChild(el('div', {},
+      el('span', { class: 'list-item-name' }, ot.name),
+      el('span', { class: 'list-item-meta mono text-xs' }, 'short: ' + ot.short)
+    ));
+    const acts = el('div', { class: 'list-item-actions' });
+    const editBtn = el('button', { class: 'sm ghost' }, 'Edit');
+    editBtn.addEventListener('click', () => {
+      const newName = prompt('Outbound type name:', ot.name);
+      if (newName === null) return;
+      const newShort = prompt('Short label (e.g. "emails"):', ot.short);
+      if (newShort === null) return;
+      ot.name = newName.trim() || ot.name;
+      ot.short = newShort.trim() || ot.short;
+      saveState(); render();
+    });
+    acts.appendChild(editBtn);
+    const delBtn = el('button', { class: 'sm ghost danger' }, 'Delete');
+    delBtn.addEventListener('click', () => {
+      if (!confirm('Delete this outbound type? Existing entries with this type will keep the data but it won\'t show in summaries.')) return;
+      state.outboundTypes = state.outboundTypes.filter(x => x.id !== ot.id);
+      saveState(); render();
+    });
+    acts.appendChild(delBtn);
+    item.appendChild(acts);
+    card.appendChild(item);
+  });
+  // Add new outbound type
+  const addRow = el('div', { class: 'flex gap-2 mt-3' });
+  const nameI = el('input', { type: 'text', placeholder: 'New outbound type (e.g. Conference Booth)' });
+  const shortI = el('input', { type: 'text', placeholder: 'short label (e.g. booth)', style: 'max-width:160px' });
+  const addBtn = el('button', { class: 'primary' }, 'Add');
+  addBtn.addEventListener('click', () => {
+    const n = nameI.value.trim(); const s = shortI.value.trim();
+    if (!n || !s) { toast('Name and short label required'); return; }
+    state.outboundTypes.push({ id: uid('o'), name: n, short: s });
+    saveState(); render(); toast('Outbound type added');
+  });
+  addRow.appendChild(nameI);
+  addRow.appendChild(shortI);
+  addRow.appendChild(addBtn);
+  card.appendChild(addRow);
+  return card;
+}
+
+function renderActivityTypesSettings() {
+  const card = el('div', { class: 'card mb-4' });
+  card.appendChild(el('div', { class: 'card-title' }, 'Prospect Activity Types'));
+  card.appendChild(el('div', { class: 'text-sm text-muted mb-3' }, 'These are activities you log against named prospects on the Pipeline tab. Cold outbound goes on the Daily Log instead.'));
+  state.activityTypes.forEach(a => {
+    const item = el('div', { class: 'list-item' });
+    item.appendChild(el('div', {},
+      el('span', { class: 'list-item-name' }, a.name),
+      el('span', { class: 'list-item-meta mono text-xs' }, 'counts as: ' + a.countsAs)
+    ));
+    const acts = el('div', { class: 'list-item-actions' });
+    const renBtn = el('button', { class: 'sm ghost' }, 'Rename');
+    renBtn.addEventListener('click', () => {
+      const n = prompt('Activity type name:', a.name);
+      if (n && n.trim()) { a.name = n.trim(); saveState(); render(); }
+    });
+    acts.appendChild(renBtn);
+    item.appendChild(acts);
+    card.appendChild(item);
+  });
+  return card;
+}
+
+function renderDataSettings() {
+  const card = el('div', { class: 'card mb-4' });
+  card.appendChild(el('div', { class: 'card-title' }, 'Data Export & Import'));
+  card.appendChild(el('div', { class: 'text-sm text-muted mb-3' }, 'Your data lives in this browser only. Export regularly. Import to restore or move between devices.'));
+  const row = el('div', { class: 'flex gap-2' });
+  const exportBtn = el('button', {}, 'Export JSON');
+  exportBtn.addEventListener('click', exportJSON);
+  row.appendChild(exportBtn);
+  const exportCsvBtn = el('button', {}, 'Export Daily Log CSV');
+  exportCsvBtn.addEventListener('click', exportDailyCSV);
+  row.appendChild(exportCsvBtn);
+  const exportPipeBtn = el('button', {}, 'Export Pipeline CSV');
+  exportPipeBtn.addEventListener('click', exportPipelineCSV);
+  row.appendChild(exportPipeBtn);
+  const importBtn = el('button', {}, 'Import JSON');
+  importBtn.addEventListener('click', importJSON);
+  row.appendChild(importBtn);
+  const resetBtn = el('button', { class: 'danger' }, 'Reset All Data');
+  resetBtn.addEventListener('click', () => {
+    if (!confirm('Wipe ALL data and start fresh? This cannot be undone.')) return;
+    if (!confirm('Are you sure? Last warning.')) return;
+    state = newState();
+    saveState();
+    openProspectId = null;
+    setView('dashboard');
+    toast('Reset complete');
+  });
+  row.appendChild(resetBtn);
+  card.appendChild(row);
+  return card;
+}
+
+function exportJSON() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'opsmirror-' + todayISO() + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Exported');
+}
+
+function exportDailyCSV() {
+  const headers = ['Date', 'Bucket', 'Client', 'Task', 'Output', 'Hours'];
+  state.outboundTypes.forEach(ot => headers.push(ot.name));
+  const rows = state.dailyLog.map(e => {
+    const c = getClient(e.clientId)?.name || '';
+    const row = [e.date, e.bucket, c, e.task || '', e.output || '', e.hours || 0];
+    state.outboundTypes.forEach(ot => row.push((e.outbound && e.outbound[ot.id]) || 0));
+    return row;
+  });
+  downloadCSV([headers, ...rows], 'opsmirror-daily-' + todayISO() + '.csv');
+}
+
+function exportPipelineCSV() {
+  const headers = ['Name', 'Company', 'Stage', 'Value', 'Probability', 'Weighted', 'Source', 'Created', 'LastTouch', 'Notes'];
+  const rows = state.prospects.map(p => {
+    const stage = getStage(p.stageId);
+    const prob = p.probabilityOverride != null ? p.probabilityOverride : (stage?.defaultProb || 0);
+    const weighted = (Number(p.dollarValue || 0) * prob) / 100;
+    return [p.name, p.company || '', stage?.name || '', p.dollarValue || 0, prob, weighted, p.source || '', p.createdAt || '', lastTouchOf(p.id) || '', (p.notes || '').replace(/\n/g, ' ')];
+  });
+  downloadCSV([headers, ...rows], 'opsmirror-pipeline-' + todayISO() + '.csv');
+}
+
+function downloadCSV(rows, filename) {
+  const csv = rows.map(r => r.map(cell => {
+    const s = String(cell ?? '');
+    if (s.includes(',') || s.includes('"') || s.includes('\n')) return '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  }).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Exported');
+}
+
+function importJSON() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'application/json,.json';
+  input.addEventListener('change', () => {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(reader.result);
+        if (!parsed || typeof parsed !== 'object') throw new Error('Invalid file');
+        if (!confirm('Replace ALL current data with the imported file? This cannot be undone.')) return;
+        const fresh = newState();
+        state = { ...fresh, ...parsed };
+        saveState();
+        render();
+        toast('Imported');
+      } catch (e) {
+        alert('Import failed: ' + e.message);
+      }
+    };
+    reader.readAsText(file);
+  });
+  input.click();
+}
+
+/* ============================================================
+   MODALS
+   ============================================================ */
+function showModal(node) {
+  const root = document.getElementById('modalRoot');
+  root.innerHTML = '';
+  const back = el('div', { class: 'modal-backdrop' });
+  back.addEventListener('click', e => { if (e.target === back) closeModal(); });
+  back.appendChild(node);
+  root.appendChild(back);
+  document.addEventListener('keydown', escClose);
+}
+function closeModal() {
+  document.getElementById('modalRoot').innerHTML = '';
+  document.removeEventListener('keydown', escClose);
+}
+function escClose(e) { if (e.key === 'Escape') closeModal(); }
+
+function openDailyEntry(entryId) {
+  const editing = entryId ? state.dailyLog.find(e => e.id === entryId) : null;
+  const data = editing ? { ...editing } : {
+    id: uid('d'), date: todayISO(), bucket: state.buckets[0],
+    clientId: state.clients[0]?.id || '', task: '', output: '',
+    hours: 1, outbound: {}
+  };
+  if (!data.outbound) data.outbound = {};
+
+  const modal = el('div', { class: 'modal' });
+  modal.appendChild(el('div', { class: 'modal-title serif' }, editing ? 'Edit Entry' : 'Log Day'));
+  const subText = el('div', { class: 'modal-sub' }, 'The form changes based on bucket. Short-Term Development logs outbound numbers; everything else logs hours and tasks.');
+  modal.appendChild(subText);
+
+  // Date + Bucket (always visible at top)
+  const r1 = el('div', { class: 'form-row-grid' });
+  const dateW = el('div'); dateW.appendChild(el('label', {}, 'Date'));
+  const dateI = el('input', { type: 'date' }); dateI.value = data.date; dateW.appendChild(dateI);
+  r1.appendChild(dateW);
+  const bucketW = el('div'); bucketW.appendChild(el('label', {}, 'Bucket'));
+  const bucketS = el('select');
+  state.buckets.forEach(b => { const o = el('option', { value: b }, b); if (b === data.bucket) o.setAttribute('selected', ''); bucketS.appendChild(o); });
+  bucketW.appendChild(bucketS);
+  r1.appendChild(bucketW);
+  modal.appendChild(r1);
+
+  // Dynamic section: changes based on bucket
+  const dynamic = el('div', { id: 'dynamicForm' });
+  modal.appendChild(dynamic);
+
+  // Field references that need to persist across re-renders
+  let clientS, taskI, outI, hoursI, outboundInputs = {};
+
+  function renderDynamic() {
+    dynamic.innerHTML = '';
+    outboundInputs = {};
+    const bucket = bucketS.value;
+    const isShortTerm = bucket === 'Short-Term Development';
+
+    // Client (always shown)
+    const clientW = el('div', { class: 'form-row' });
+    clientW.appendChild(el('label', {}, 'Client / Project'));
+    clientS = el('select');
+    state.clients.forEach(c => { const o = el('option', { value: c.id }, c.name); if (c.id === data.clientId) o.setAttribute('selected', ''); clientS.appendChild(o); });
+    const newOpt = el('option', { value: '__new__' }, '+ Add new client...');
+    clientS.appendChild(newOpt);
+    clientS.addEventListener('change', () => {
+      if (clientS.value === '__new__') {
+        const name = prompt('New client name:');
+        if (name && name.trim()) {
+          const c = { id: uid('c'), name: name.trim() };
+          state.clients.push(c); saveState();
+          const opt = el('option', { value: c.id }, c.name);
+          clientS.insertBefore(opt, newOpt);
+          clientS.value = c.id;
+        } else {
+          clientS.value = data.clientId || state.clients[0]?.id || '';
+        }
+      }
+    });
+    clientW.appendChild(clientS);
+    dynamic.appendChild(clientW);
+
+    if (isShortTerm) {
+      // OUTBOUND NUMBERS section
+      const obSection = el('div', { class: 'form-row' });
+      obSection.appendChild(el('label', {}, 'Outbound Today (numbers only)'));
+      obSection.appendChild(el('div', { class: 'text-xs text-muted mb-3' }, 'Replies, meetings, and proposals get logged on the Pipeline tab as activities on specific prospects.'));
+      const grid = el('div', { class: 'grid grid-3 gap-3' });
+      state.outboundTypes.forEach(ot => {
+        const fw = el('div');
+        fw.appendChild(el('label', { style: 'font-size:11px' }, ot.name));
+        const input = el('input', { type: 'number', min: '0', step: '1', placeholder: '0' });
+        if (data.outbound[ot.id]) input.value = data.outbound[ot.id];
+        outboundInputs[ot.id] = input;
+        fw.appendChild(input);
+        grid.appendChild(fw);
+      });
+      obSection.appendChild(grid);
+      dynamic.appendChild(obSection);
+
+      // Optional context
+      const ctxW = el('div', { class: 'form-row' });
+      ctxW.appendChild(el('label', {}, 'Campaign / Notes (optional)'));
+      taskI = el('input', { type: 'text', placeholder: 'e.g. Industrial distributors, Wright Tool follow-ups' });
+      taskI.value = data.task || '';
+      ctxW.appendChild(taskI);
+      dynamic.appendChild(ctxW);
+
+      // Hours optional
+      const hrsW = el('div', { class: 'form-row' });
+      hrsW.appendChild(el('label', {}, 'Hours Spent (optional)'));
+      hoursI = el('input', { type: 'number', step: '0.25', min: '0', placeholder: '0' });
+      hoursI.value = data.hours || '';
+      hrsW.appendChild(hoursI);
+      dynamic.appendChild(hrsW);
+
+      // No output field for short-term (campaign notes covers it)
+      outI = { value: '' }; // stub so save still works
+    } else {
+      // STANDARD form (Existing Engine, Automation R&D, Long-Term Dev)
+      const taskW = el('div', { class: 'form-row' });
+      taskW.appendChild(el('label', {}, 'Task *'));
+      taskI = el('input', { type: 'text', placeholder: bucket === 'Existing Engine' ? 'e.g. Weekly product analysis for Wright Tool' : bucket === 'Existing Automation/R&D' ? 'e.g. Built pricing dashboard logic' : 'e.g. Wrote blog post on B2B Buy Box collapse' });
+      taskI.value = data.task || '';
+      taskW.appendChild(taskI);
+      dynamic.appendChild(taskW);
+
+      const outW = el('div', { class: 'form-row' });
+      outW.appendChild(el('label', {}, 'Output / What Shipped'));
+      outI = el('input', { type: 'text', placeholder: 'e.g. Completed report, sent to client' });
+      outI.value = data.output || '';
+      outW.appendChild(outI);
+      dynamic.appendChild(outW);
+
+      const hrsW = el('div', { class: 'form-row' });
+      hrsW.appendChild(el('label', {}, 'Hours'));
+      hoursI = el('input', { type: 'number', step: '0.25', min: '0' });
+      hoursI.value = data.hours || 1;
+      hrsW.appendChild(hoursI);
+      hrsW.appendChild(el('div', { class: 'text-xs text-muted mt-2' }, '0.25, 0.5, 1, 1.5, 2... rough is fine'));
+      dynamic.appendChild(hrsW);
+    }
+  }
+
+  bucketS.addEventListener('change', () => {
+    // Save current state to data before re-rendering
+    if (taskI && taskI.value != null) data.task = taskI.value;
+    if (outI && outI.value != null) data.output = outI.value;
+    if (hoursI && hoursI.value != null) data.hours = hoursI.value;
+    Object.keys(outboundInputs).forEach(k => { data.outbound[k] = parseInt(outboundInputs[k].value, 10) || 0; });
+    data.bucket = bucketS.value;
+    renderDynamic();
+  });
+
+  renderDynamic();
+
+  // Actions
+  const actions = el('div', { class: 'form-actions' });
+  const cancelBtn = el('button', {}, 'Cancel'); cancelBtn.addEventListener('click', closeModal);
+  actions.appendChild(cancelBtn);
+  const saveBtn = el('button', { class: 'primary' }, editing ? 'Save Changes' : 'Log Entry');
+  saveBtn.addEventListener('click', () => {
+    const bucket = bucketS.value;
+    const isShortTerm = bucket === 'Short-Term Development';
+    const outbound = {};
+    Object.keys(outboundInputs).forEach(k => {
+      const n = parseInt(outboundInputs[k].value, 10);
+      if (!isNaN(n) && n > 0) outbound[k] = n;
+    });
+    const totalOutbound = Object.values(outbound).reduce((s, n) => s + n, 0);
+
+    if (isShortTerm) {
+      if (totalOutbound === 0 && !taskI.value.trim()) {
+        alert('Add at least one outbound number or a campaign note.'); return;
+      }
+    } else {
+      if (!taskI.value.trim()) { alert('Task is required'); return; }
+    }
+
+    const entry = {
+      id: data.id,
+      date: dateI.value,
+      bucket: bucket,
+      clientId: clientS.value === '__new__' ? '' : clientS.value,
+      task: taskI.value.trim(),
+      output: (outI && outI.value) ? outI.value.trim() : '',
+      hours: parseFloat(hoursI.value) || 0,
+      outbound: outbound
+    };
+    if (editing) {
+      const idx = state.dailyLog.findIndex(e => e.id === entry.id);
+      state.dailyLog[idx] = entry;
+    } else {
+      state.dailyLog.push(entry);
+    }
+    saveState();
+    closeModal();
+    render();
+    toast(editing ? 'Entry updated' : 'Entry logged');
+  });
+  actions.appendChild(saveBtn);
+  modal.appendChild(actions);
+
+  showModal(modal);
+}
+
+function openProspectModal(prospectId) {
+  const editing = prospectId ? getProspect(prospectId) : null;
+  const data = editing ? { ...editing } : {
+    id: uid('p'), name: '', company: '',
+    stageId: state.stages[0]?.id || '', dollarValue: 0,
+    probabilityOverride: null, source: '',
+    createdAt: todayISO(), notes: ''
+  };
+
+  const modal = el('div', { class: 'modal' });
+  modal.appendChild(el('div', { class: 'modal-title serif' }, editing ? 'Edit Prospect' : 'New Prospect'));
+  modal.appendChild(el('div', { class: 'modal-sub' }, editing ? 'Update prospect details and stage.' : 'Add a new prospect to your pipeline.'));
+
+  // Name + Company
+  const r1 = el('div', { class: 'form-row-grid' });
+  const nameW = el('div'); nameW.appendChild(el('label', {}, 'Name *'));
+  const nameI = el('input', { type: 'text', placeholder: 'e.g. Billy Johnson' }); nameI.value = data.name; nameW.appendChild(nameI);
+  r1.appendChild(nameW);
+  const compW = el('div'); compW.appendChild(el('label', {}, 'Company'));
+  const compI = el('input', { type: 'text', placeholder: 'e.g. Acme Industrial' }); compI.value = data.company || ''; compW.appendChild(compI);
+  r1.appendChild(compW);
+  modal.appendChild(r1);
+
+  // Stage + Value
+  const r2 = el('div', { class: 'form-row-grid' });
+  const stageW = el('div'); stageW.appendChild(el('label', {}, 'Stage'));
+  const stageS = el('select');
+  state.stages.sort((a, b) => a.order - b.order).forEach(s => { const o = el('option', { value: s.id }, s.name); if (s.id === data.stageId) o.setAttribute('selected', ''); stageS.appendChild(o); });
+  stageW.appendChild(stageS);
+  r2.appendChild(stageW);
+  const valW = el('div'); valW.appendChild(el('label', {}, 'Value ($)'));
+  const valI = el('input', { type: 'number', min: '0', step: '100', placeholder: '0' }); valI.value = data.dollarValue || 0; valW.appendChild(valI);
+  r2.appendChild(valW);
+  modal.appendChild(r2);
+
+  // Probability + Source
+  const r3 = el('div', { class: 'form-row-grid' });
+  const probW = el('div');
+  probW.appendChild(el('label', {}, 'Probability Override (optional)'));
+  const probI = el('input', { type: 'number', min: '0', max: '100', step: '5', placeholder: 'leave blank for stage default' });
+  if (data.probabilityOverride != null) probI.value = data.probabilityOverride;
+  probW.appendChild(probI);
+  const probHint = el('div', { class: 'text-xs text-muted mt-2 mono' });
+  const updateHint = () => {
+    const s = state.stages.find(x => x.id === stageS.value);
+    probHint.textContent = 'stage default: ' + (s?.defaultProb || 0) + '%';
+  };
+  updateHint();
+  stageS.addEventListener('change', updateHint);
+  probW.appendChild(probHint);
+  r3.appendChild(probW);
+  const srcW = el('div'); srcW.appendChild(el('label', {}, 'Source'));
+  const srcI = el('input', { type: 'text', placeholder: 'e.g. Upwork, Referral, LinkedIn' }); srcI.value = data.source || ''; srcW.appendChild(srcI);
+  r3.appendChild(srcW);
+  modal.appendChild(r3);
+
+  // Notes
+  const notesW = el('div', { class: 'form-row' });
+  notesW.appendChild(el('label', {}, 'Notes'));
+  const notesI = el('textarea', { rows: 3, placeholder: 'Context, contact details, what they need...' }); notesI.value = data.notes || ''; notesW.appendChild(notesI);
+  modal.appendChild(notesW);
+
+  const actions = el('div', { class: 'form-actions' });
+  const cancelBtn = el('button', {}, 'Cancel'); cancelBtn.addEventListener('click', closeModal);
+  actions.appendChild(cancelBtn);
+  const saveBtn = el('button', { class: 'primary' }, editing ? 'Save Changes' : 'Add Prospect');
+  saveBtn.addEventListener('click', () => {
+    if (!nameI.value.trim()) { alert('Name is required'); return; }
+    const probVal = probI.value === '' ? null : parseInt(probI.value, 10);
+    const prospect = {
+      id: data.id,
+      name: nameI.value.trim(),
+      company: compI.value.trim(),
+      stageId: stageS.value,
+      dollarValue: parseFloat(valI.value) || 0,
+      probabilityOverride: (probVal != null && !isNaN(probVal)) ? probVal : null,
+      source: srcI.value.trim(),
+      createdAt: data.createdAt || todayISO(),
+      notes: notesI.value
+    };
+    if (editing) {
+      const idx = state.prospects.findIndex(p => p.id === prospect.id);
+      state.prospects[idx] = prospect;
+    } else {
+      state.prospects.push(prospect);
+    }
+    saveState();
+    closeModal();
+    render();
+    toast(editing ? 'Prospect updated' : 'Prospect added');
+  });
+  actions.appendChild(saveBtn);
+  modal.appendChild(actions);
+
+  showModal(modal);
+}
+
+function openActivityModal(prospectId) {
+  if (state.prospects.length === 0) {
+    alert('Add a prospect first before logging activity.');
+    return;
+  }
+  const data = {
+    id: uid('a'), prospectId: prospectId || state.prospects[0].id,
+    date: todayISO(), typeId: state.activityTypes[0]?.id || '',
+    note: '', dollarValue: null,
+    advanceStageId: ''
+  };
+
+  const modal = el('div', { class: 'modal' });
+  modal.appendChild(el('div', { class: 'modal-title serif' }, 'Log Activity'));
+  modal.appendChild(el('div', { class: 'modal-sub' }, 'Each activity feeds your weekly pipeline KPIs.'));
+
+  const r1 = el('div', { class: 'form-row-grid' });
+  const prospW = el('div'); prospW.appendChild(el('label', {}, 'Prospect'));
+  const prospS = el('select');
+  state.prospects.forEach(p => {
+    const label = p.name + (p.company ? ' (' + p.company + ')' : '');
+    const o = el('option', { value: p.id }, label);
+    if (p.id === data.prospectId) o.setAttribute('selected', '');
+    prospS.appendChild(o);
+  });
+  prospW.appendChild(prospS);
+  r1.appendChild(prospW);
+  const dateW = el('div'); dateW.appendChild(el('label', {}, 'Date'));
+  const dateI = el('input', { type: 'date' }); dateI.value = data.date; dateW.appendChild(dateI);
+  r1.appendChild(dateW);
+  modal.appendChild(r1);
+
+  const r2 = el('div', { class: 'form-row-grid' });
+  const typeW = el('div'); typeW.appendChild(el('label', {}, 'Activity Type'));
+  const typeS = el('select');
+  state.activityTypes.forEach(a => { const o = el('option', { value: a.id }, a.name); if (a.id === data.typeId) o.setAttribute('selected', ''); typeS.appendChild(o); });
+  typeW.appendChild(typeS);
+  r2.appendChild(typeW);
+  const valW = el('div'); valW.appendChild(el('label', {}, 'Dollar Value (optional)'));
+  const valI = el('input', { type: 'number', min: '0', step: '100', placeholder: 'for proposals, deals, etc.' });
+  valW.appendChild(valI);
+  r2.appendChild(valW);
+  modal.appendChild(r2);
+
+  // Advance stage option
+  const advW = el('div', { class: 'form-row' });
+  advW.appendChild(el('label', {}, 'Advance Prospect Stage (optional)'));
+  const advS = el('select');
+  advS.appendChild(el('option', { value: '' }, 'No change'));
+  state.stages.sort((a, b) => a.order - b.order).forEach(s => { advS.appendChild(el('option', { value: s.id }, s.name)); });
+  advW.appendChild(advS);
+  modal.appendChild(advW);
+
+  // Note
+  const noteW = el('div', { class: 'form-row' });
+  noteW.appendChild(el('label', {}, 'Note (optional)'));
+  const noteI = el('textarea', { rows: 2, placeholder: 'Sent revised proposal at $14k. Asked for response by Friday.' });
+  noteW.appendChild(noteI);
+  modal.appendChild(noteW);
+
+  const actions = el('div', { class: 'form-actions' });
+  const cancelBtn = el('button', {}, 'Cancel'); cancelBtn.addEventListener('click', closeModal);
+  actions.appendChild(cancelBtn);
+  const saveBtn = el('button', { class: 'primary' }, 'Log Activity');
+  saveBtn.addEventListener('click', () => {
+    const v = valI.value === '' ? null : parseFloat(valI.value);
+    const activity = {
+      id: data.id,
+      prospectId: prospS.value,
+      date: dateI.value,
+      typeId: typeS.value,
+      note: noteI.value.trim(),
+      dollarValue: (v != null && !isNaN(v)) ? v : null
+    };
+    state.activities.push(activity);
+    if (advS.value) {
+      const p = getProspect(prospS.value);
+      if (p) p.stageId = advS.value;
+    }
+    saveState();
+    closeModal();
+    render();
+    toast('Activity logged');
+  });
+  actions.appendChild(saveBtn);
+  modal.appendChild(actions);
+
+  showModal(modal);
+}
+
+/* ============================================================
+   TOASTS
+   ============================================================ */
+function toast(msg) {
+  const root = document.getElementById('toastRoot');
+  const t = el('div', { class: 'toast' }, msg);
+  root.innerHTML = '';
+  root.appendChild(t);
+  setTimeout(() => { if (root.contains(t)) root.removeChild(t); }, 2200);
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+document.querySelectorAll('.nav-item').forEach(n => {
+  n.addEventListener('click', () => setView(n.dataset.view));
+});
+
+setView('dashboard');
+</script>
+
+</body>
+</html>
