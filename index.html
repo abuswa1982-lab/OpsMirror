@@ -589,6 +589,9 @@ hr.divider { border: none; border-top: 1px solid var(--border-soft); margin: 16p
         <span>Pipeline</span>
         <span class="badge" id="navPipelineBadge"></span>
       </div>
+      <div class="nav-item" data-view="history">
+        <span>History</span>
+      </div>
       <div class="nav-item" data-view="reflection">
         <span>Reflection</span>
       </div>
@@ -668,7 +671,7 @@ const DEFAULT_TARGETS = {
 
 function newState() {
   return {
-    version: '1.1',
+    version: '1.2',
     clients: [{ id: 'c_modonix', name: 'Modonix Internal' }],
     buckets: [...DEFAULT_BUCKETS],
     stages: JSON.parse(JSON.stringify(DEFAULT_STAGES)),
@@ -678,7 +681,9 @@ function newState() {
     prospects: [],
     activities: [],
     weeklyTargets: { ...DEFAULT_TARGETS },
-    reflections: []
+    reflections: [],
+    lastExportedAt: null,
+    createdAt: todayISO()
   };
 }
 
@@ -718,6 +723,9 @@ function loadState() {
     if (!merged.outboundTypes || merged.outboundTypes.length === 0) {
       merged.outboundTypes = JSON.parse(JSON.stringify(DEFAULT_OUTBOUND_TYPES));
     }
+    // v1.2: backfill lastExportedAt and createdAt
+    if (merged.lastExportedAt === undefined) merged.lastExportedAt = null;
+    if (!merged.createdAt) merged.createdAt = todayISO();
     return merged;
   } catch (e) {
     console.error('Failed to load state:', e);
@@ -789,6 +797,56 @@ function daysAgo(dateStr) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const d = new Date(dateStr); d.setHours(0, 0, 0, 0);
   return Math.floor((today - d) / (1000 * 60 * 60 * 24));
+}
+
+/* History view state */
+let historyState = {
+  preset: 'last30',
+  from: null,  // ISO string
+  to: null     // ISO string
+};
+
+function resolveHistoryRange() {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const todayStr = isoDate(today);
+  let from, to;
+  switch (historyState.preset) {
+    case 'last7': from = isoDate(addDays(today, -6)); to = todayStr; break;
+    case 'last30': from = isoDate(addDays(today, -29)); to = todayStr; break;
+    case 'last90': from = isoDate(addDays(today, -89)); to = todayStr; break;
+    case 'thisMonth': {
+      const d = new Date(today.getFullYear(), today.getMonth(), 1);
+      from = isoDate(d); to = todayStr; break;
+    }
+    case 'lastMonth': {
+      const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const end = new Date(today.getFullYear(), today.getMonth(), 0);
+      from = isoDate(start); to = isoDate(end); break;
+    }
+    case 'thisQuarter': {
+      const q = Math.floor(today.getMonth() / 3);
+      const start = new Date(today.getFullYear(), q * 3, 1);
+      from = isoDate(start); to = todayStr; break;
+    }
+    case 'ytd': {
+      const start = new Date(today.getFullYear(), 0, 1);
+      from = isoDate(start); to = todayStr; break;
+    }
+    case 'all': from = '0000-01-01'; to = '9999-12-31'; break;
+    case 'custom': from = historyState.from || todayStr; to = historyState.to || todayStr; break;
+    default: from = isoDate(addDays(today, -29)); to = todayStr;
+  }
+  return { from, to };
+}
+
+function inRange(dateStr, from, to) {
+  return dateStr >= from && dateStr <= to;
+}
+
+function rangeDays(from, to) {
+  if (from === '0000-01-01') return null; // "all time"
+  const f = new Date(from); const t = new Date(to);
+  return Math.floor((t - f) / (1000 * 60 * 60 * 24)) + 1;
 }
 
 /* ============================================================
@@ -1019,6 +1077,7 @@ function render() {
   if (currentView === 'dashboard') renderDashboard(main);
   else if (currentView === 'daily') renderDaily(main);
   else if (currentView === 'pipeline') renderPipeline(main);
+  else if (currentView === 'history') renderHistory(main);
   else if (currentView === 'reflection') renderReflection(main);
   else if (currentView === 'settings') renderSettings(main);
 }
@@ -1079,6 +1138,27 @@ function renderDashboard(main) {
       el('button', { class: 'sm', onclick: () => setView('pipeline') }, 'Review →')
     );
     main.appendChild(alert);
+  }
+
+  // Backup nag banner
+  const hasData = state.dailyLog.length > 0 || state.prospects.length > 0;
+  if (hasData) {
+    const lastExp = state.lastExportedAt;
+    const daysSince = lastExp ? daysAgo(lastExp) : null;
+    const showNag = (lastExp == null && daysAgo(state.createdAt || todayISO()) >= 7) || (daysSince != null && daysSince >= 14);
+    if (showNag) {
+      const msg = lastExp
+        ? 'It has been ' + daysSince + ' days since your last backup. Browser data is not durable. Export now to be safe.'
+        : 'You have data but no backup. Export your data now and store it somewhere safe (e.g., Google Drive).';
+      const nag = el('div', { class: 'alert mb-4' },
+        el('div', { class: 'alert-text' },
+          el('strong', {}, 'Backup reminder:'),
+          ' ' + msg
+        ),
+        el('button', { class: 'sm primary', onclick: () => exportJSON() }, 'Export JSON')
+      );
+      main.appendChild(nag);
+    }
   }
 
   // Top KPI row
@@ -1296,6 +1376,493 @@ function renderRecentActivity() {
     card.appendChild(wrap);
   });
   return card;
+}
+
+/* ============================================================
+   HISTORY VIEW
+   ============================================================ */
+
+function computePeriodSummary(from, to) {
+  const entries = state.dailyLog.filter(e => inRange(e.date, from, to));
+  const acts = state.activities.filter(a => inRange(a.date, from, to));
+  const newProspects = state.prospects.filter(p => p.createdAt && inRange(p.createdAt, from, to));
+
+  // Hours
+  const totalHours = entries.reduce((s, e) => s + Number(e.hours || 0), 0);
+  const hoursByBucket = {};
+  state.buckets.forEach(b => hoursByBucket[b] = 0);
+  entries.forEach(e => { hoursByBucket[e.bucket] = (hoursByBucket[e.bucket] || 0) + Number(e.hours || 0); });
+  const hoursByClient = {};
+  entries.forEach(e => {
+    const name = getClient(e.clientId)?.name || 'Unassigned';
+    hoursByClient[name] = (hoursByClient[name] || 0) + Number(e.hours || 0);
+  });
+
+  // Outbound (from Short-Term Dev daily entries)
+  const outboundByType = {};
+  state.outboundTypes.forEach(t => outboundByType[t.id] = 0);
+  entries.filter(e => e.bucket === 'Short-Term Development').forEach(e => {
+    if (!e.outbound) return;
+    Object.keys(e.outbound).forEach(k => { outboundByType[k] = (outboundByType[k] || 0) + Number(e.outbound[k] || 0); });
+  });
+  const totalOutbound = Object.values(outboundByType).reduce((s, n) => s + n, 0);
+  const totalCold = (outboundByType['o_email'] || 0) + (outboundByType['o_followup'] || 0);
+
+  // Activities (from prospect activities)
+  const activityCounts = { reply: 0, email_reply: 0, meeting: 0, meeting_held: 0, proposal: 0, won: 0, lost: 0 };
+  let proposalsValue = 0, wonValue = 0, lostValue = 0;
+  acts.forEach(a => {
+    const t = getActivityType(a.typeId);
+    if (!t) return;
+    if (activityCounts[t.countsAs] != null) activityCounts[t.countsAs]++;
+    const v = Number(a.dollarValue || 0);
+    if (t.countsAs === 'proposal') proposalsValue += v;
+    if (t.countsAs === 'won') wonValue += v;
+    if (t.countsAs === 'lost') lostValue += v;
+  });
+
+  // Weighted $ added (proposals in range, valued at prospect's current probability)
+  let weightedAdded = 0;
+  const seen = new Set();
+  acts.forEach(a => {
+    const t = getActivityType(a.typeId);
+    if (!t || t.countsAs !== 'proposal') return;
+    if (seen.has(a.prospectId)) return;
+    seen.add(a.prospectId);
+    const p = getProspect(a.prospectId);
+    if (!p) return;
+    const stage = getStage(p.stageId);
+    const prob = (p.probabilityOverride != null ? p.probabilityOverride : (stage?.defaultProb || 0)) / 100;
+    const v = Number(a.dollarValue || p.dollarValue || 0);
+    weightedAdded += v * prob;
+  });
+
+  // Days logged
+  const datesLogged = new Set(entries.map(e => e.date));
+  const totalDays = rangeDays(from, to);
+
+  // Conversion rates
+  const replyRate = totalCold > 0 ? (activityCounts.reply / totalCold) * 100 : 0;
+  const meetingRate = activityCounts.reply > 0 ? (activityCounts.meeting / activityCounts.reply) * 100 : 0;
+  const proposalRate = activityCounts.meeting > 0 ? (activityCounts.proposal / activityCounts.meeting) * 100 : 0;
+  const closeRate = activityCounts.proposal > 0 ? (activityCounts.won / activityCounts.proposal) * 100 : 0;
+
+  return {
+    entries, acts, newProspects,
+    totalHours, hoursByBucket, hoursByClient,
+    outboundByType, totalOutbound, totalCold,
+    activityCounts, proposalsValue, wonValue, lostValue, weightedAdded,
+    datesLogged, totalDays,
+    replyRate, meetingRate, proposalRate, closeRate
+  };
+}
+
+function weeklyBreakdownInRange(from, to) {
+  if (from === '0000-01-01') {
+    // For "all time" cap to last 26 weeks
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    from = isoDate(addDays(today, -26 * 7));
+    to = isoDate(today);
+  }
+  const fromDate = new Date(from);
+  const toDate = new Date(to);
+  const firstMonday = getMonday(fromDate);
+  const weeks = [];
+  let cursor = firstMonday;
+  while (cursor <= toDate && weeks.length < 52) {
+    const sunday = addDays(cursor, 6);
+    const weekFrom = isoDate(cursor) > from ? isoDate(cursor) : from;
+    const weekTo = isoDate(sunday) < to ? isoDate(sunday) : to;
+    weeks.push({ monday: cursor, from: weekFrom, to: weekTo, summary: computePeriodSummary(weekFrom, weekTo) });
+    cursor = addDays(cursor, 7);
+  }
+  return weeks;
+}
+
+function renderHistory(main) {
+  const range = resolveHistoryRange();
+  const summary = computePeriodSummary(range.from, range.to);
+
+  // Header
+  const header = el('div', { class: 'view-header' });
+  header.appendChild(el('div', {},
+    el('div', { class: 'view-title serif' }, 'History'),
+    el('div', { class: 'view-sub' }, 'Pick a date range. Stats, trends, and exports update live. All your data is here, nothing rolls off.')
+  ));
+  main.appendChild(header);
+
+  // Range picker card
+  const pickerCard = el('div', { class: 'card mb-4' });
+  pickerCard.appendChild(el('div', { class: 'card-title' }, 'Date Range'));
+  const presets = [
+    { id: 'last7', label: 'Last 7 Days' },
+    { id: 'last30', label: 'Last 30 Days' },
+    { id: 'last90', label: 'Last 90 Days' },
+    { id: 'thisMonth', label: 'This Month' },
+    { id: 'lastMonth', label: 'Last Month' },
+    { id: 'thisQuarter', label: 'This Quarter' },
+    { id: 'ytd', label: 'Year to Date' },
+    { id: 'all', label: 'All Time' },
+    { id: 'custom', label: 'Custom' }
+  ];
+  const presetRow = el('div', { class: 'flex gap-2 mb-3', style: 'flex-wrap:wrap' });
+  presets.forEach(p => {
+    const btn = el('button', { class: 'sm' + (historyState.preset === p.id ? ' primary' : '') }, p.label);
+    btn.addEventListener('click', () => {
+      historyState.preset = p.id;
+      if (p.id === 'custom') {
+        if (!historyState.from) historyState.from = isoDate(addDays(new Date(), -29));
+        if (!historyState.to) historyState.to = todayISO();
+      }
+      render();
+    });
+    presetRow.appendChild(btn);
+  });
+  pickerCard.appendChild(presetRow);
+
+  // Custom range inputs (visible only when Custom is selected)
+  if (historyState.preset === 'custom') {
+    const customRow = el('div', { class: 'form-row-grid' });
+    const fromW = el('div'); fromW.appendChild(el('label', {}, 'From'));
+    const fromI = el('input', { type: 'date' }); fromI.value = historyState.from || todayISO();
+    fromI.addEventListener('change', () => { historyState.from = fromI.value; render(); });
+    fromW.appendChild(fromI); customRow.appendChild(fromW);
+    const toW = el('div'); toW.appendChild(el('label', {}, 'To'));
+    const toI = el('input', { type: 'date' }); toI.value = historyState.to || todayISO();
+    toI.addEventListener('change', () => { historyState.to = toI.value; render(); });
+    toW.appendChild(toI); customRow.appendChild(toW);
+    pickerCard.appendChild(customRow);
+  }
+
+  // Resolved range display
+  const rangeDisplay = el('div', { class: 'mono text-sm text-muted' });
+  if (range.from === '0000-01-01') {
+    rangeDisplay.textContent = 'Showing: All Time (' + state.dailyLog.length + ' daily entries, ' + state.activities.length + ' activities, ' + state.prospects.length + ' prospects)';
+  } else {
+    const days = summary.totalDays;
+    rangeDisplay.textContent = 'Showing: ' + formatDateLong(range.from) + ' to ' + formatDateLong(range.to) + ' (' + days + ' day' + (days === 1 ? '' : 's') + ')';
+  }
+  pickerCard.appendChild(rangeDisplay);
+
+  // Export buttons
+  const exportRow = el('div', { class: 'flex gap-2 mt-3' });
+  const expDailyBtn = el('button', {}, 'Export Daily Log CSV');
+  expDailyBtn.addEventListener('click', () => exportRangeDailyCSV(range.from, range.to));
+  exportRow.appendChild(expDailyBtn);
+  const expActsBtn = el('button', {}, 'Export Activities CSV');
+  expActsBtn.addEventListener('click', () => exportRangeActivitiesCSV(range.from, range.to));
+  exportRow.appendChild(expActsBtn);
+  const expSummaryBtn = el('button', {}, 'Export Period Summary CSV');
+  expSummaryBtn.addEventListener('click', () => exportPeriodSummaryCSV(range.from, range.to, summary));
+  exportRow.appendChild(expSummaryBtn);
+  pickerCard.appendChild(exportRow);
+  main.appendChild(pickerCard);
+
+  // Top KPI tiles
+  const totalDaysLabel = summary.totalDays != null ? (summary.datesLogged.size + '/' + summary.totalDays + ' days logged') : (summary.datesLogged.size + ' days logged');
+  const kpiGrid = el('div', { class: 'grid grid-5 mb-4' });
+  kpiGrid.appendChild(makeKpi('Total Hours', summary.totalHours.toFixed(1), 'h', totalDaysLabel));
+  kpiGrid.appendChild(makeKpi('Outbound Sent', summary.totalOutbound.toLocaleString(), '', summary.totalCold + ' cold (email + follow-up)'));
+  kpiGrid.appendChild(makeKpi('Replies', summary.activityCounts.reply.toLocaleString(), '', fmtPct(summary.replyRate) + ' reply rate'));
+  kpiGrid.appendChild(makeKpi('Proposals Sent', summary.activityCounts.proposal.toLocaleString(), '', fmtDollars(summary.proposalsValue) + ' total value'));
+  kpiGrid.appendChild(makeKpi('Closed Won', fmtDollars(summary.wonValue), '', summary.activityCounts.won + ' won, ' + summary.activityCounts.lost + ' lost'));
+  main.appendChild(kpiGrid);
+
+  // Conversion rates strip
+  const convCard = el('div', { class: 'card mb-4' });
+  convCard.appendChild(el('div', { class: 'card-title' }, 'Conversion Rates for the Period'));
+  const convGrid = el('div', { class: 'grid grid-4 gap-4' });
+  convGrid.appendChild(makeMiniStat('Reply Rate', fmtPct(summary.replyRate), summary.activityCounts.reply + ' / ' + summary.totalCold + ' cold'));
+  convGrid.appendChild(makeMiniStat('Meeting Rate', fmtPct(summary.meetingRate), summary.activityCounts.meeting + ' / ' + summary.activityCounts.reply + ' replies'));
+  convGrid.appendChild(makeMiniStat('Proposal Rate', fmtPct(summary.proposalRate), summary.activityCounts.proposal + ' / ' + summary.activityCounts.meeting + ' meetings'));
+  convGrid.appendChild(makeMiniStat('Close Rate', fmtPct(summary.closeRate), summary.activityCounts.won + ' / ' + summary.activityCounts.proposal + ' proposals'));
+  convCard.appendChild(convGrid);
+  // Weighted $ added pull-out
+  convCard.appendChild(el('hr', { class: 'divider' }));
+  const wAddedRow = el('div', { class: 'flex-between' });
+  wAddedRow.appendChild(el('div', {},
+    el('div', { class: 'kpi-label' }, 'Weighted $ Pipeline Added in Period'),
+    el('div', { class: 'text-xs text-muted' }, 'Sum of (proposal value × probability) for new proposals in this range')
+  ));
+  wAddedRow.appendChild(el('div', { class: 'mono', style: 'font-size:24px;font-weight:500;color:var(--accent)' }, fmtDollars(summary.weightedAdded)));
+  convCard.appendChild(wAddedRow);
+  main.appendChild(convCard);
+
+  // Hours by Bucket + Hours by Client side by side
+  const breakdownRow = el('div', { class: 'grid grid-2 mb-4' });
+  breakdownRow.appendChild(renderHoursBreakdown('Hours by Bucket', summary.hoursByBucket, summary.totalHours));
+  breakdownRow.appendChild(renderHoursBreakdown('Hours by Client', summary.hoursByClient, summary.totalHours));
+  main.appendChild(breakdownRow);
+
+  // Outbound + Activity breakdowns
+  const breakdownRow2 = el('div', { class: 'grid grid-2 mb-4' });
+  breakdownRow2.appendChild(renderOutboundBreakdown(summary));
+  breakdownRow2.appendChild(renderActivityBreakdown(summary));
+  main.appendChild(breakdownRow2);
+
+  // Weekly trend table
+  main.appendChild(renderWeeklyTrend(range.from, range.to));
+
+  // Prospects in period
+  main.appendChild(renderProspectsInPeriod(range.from, range.to, summary));
+}
+
+function renderHoursBreakdown(title, dataObj, total) {
+  const card = el('div', { class: 'card' });
+  card.appendChild(el('div', { class: 'card-title-row' },
+    el('div', { class: 'card-title' }, title),
+    el('div', { class: 'mono text-sm text-muted' }, total.toFixed(1) + 'h total')
+  ));
+  const entries = Object.entries(dataObj).sort((a, b) => b[1] - a[1]);
+  if (entries.length === 0 || total === 0) {
+    card.appendChild(el('div', { class: 'empty' }, el('div', { class: 'empty-sub' }, 'No hours in this period.')));
+    return card;
+  }
+  entries.forEach(([name, hours]) => {
+    if (hours === 0) return;
+    const pct = total > 0 ? (hours / total) * 100 : 0;
+    const row = el('div', { class: 'goal-row' });
+    row.appendChild(el('div', { class: 'goal-label' }, name));
+    row.appendChild(el('div', { class: 'goal-value' }, hours.toFixed(1) + 'h'));
+    const bar = el('div', { class: 'goal-bar' });
+    bar.appendChild(el('div', { class: 'goal-bar-fill', style: 'width:' + Math.min(pct, 100) + '%' }));
+    row.appendChild(bar);
+    row.appendChild(el('div', { class: 'goal-pct' }, fmtPct(pct)));
+    card.appendChild(row);
+  });
+  return card;
+}
+
+function renderOutboundBreakdown(summary) {
+  const card = el('div', { class: 'card' });
+  card.appendChild(el('div', { class: 'card-title-row' },
+    el('div', { class: 'card-title' }, 'Outbound by Type'),
+    el('div', { class: 'mono text-sm text-muted' }, summary.totalOutbound + ' total')
+  ));
+  if (summary.totalOutbound === 0) {
+    card.appendChild(el('div', { class: 'empty' }, el('div', { class: 'empty-sub' }, 'No outbound logged in this period.')));
+    return card;
+  }
+  state.outboundTypes.forEach(ot => {
+    const count = summary.outboundByType[ot.id] || 0;
+    if (count === 0) return;
+    const pct = summary.totalOutbound > 0 ? (count / summary.totalOutbound) * 100 : 0;
+    const row = el('div', { class: 'goal-row' });
+    row.appendChild(el('div', { class: 'goal-label' }, ot.name));
+    row.appendChild(el('div', { class: 'goal-value' }, count.toLocaleString()));
+    const bar = el('div', { class: 'goal-bar' });
+    bar.appendChild(el('div', { class: 'goal-bar-fill', style: 'width:' + Math.min(pct, 100) + '%' }));
+    row.appendChild(bar);
+    row.appendChild(el('div', { class: 'goal-pct' }, fmtPct(pct)));
+    card.appendChild(row);
+  });
+  return card;
+}
+
+function renderActivityBreakdown(summary) {
+  const card = el('div', { class: 'card' });
+  card.appendChild(el('div', { class: 'card-title' }, 'Prospect Activities'));
+  const labels = {
+    reply: 'Replies Received',
+    email_reply: 'Email Replies Sent',
+    meeting: 'Meetings Booked',
+    meeting_held: 'Meetings Held',
+    proposal: 'Proposals Sent',
+    won: 'Closed Won',
+    lost: 'Closed Lost'
+  };
+  const total = Object.values(summary.activityCounts).reduce((s, n) => s + n, 0);
+  if (total === 0) {
+    card.appendChild(el('div', { class: 'empty' }, el('div', { class: 'empty-sub' }, 'No prospect activities in this period.')));
+    return card;
+  }
+  Object.entries(labels).forEach(([key, label]) => {
+    const count = summary.activityCounts[key] || 0;
+    if (count === 0) return;
+    const pct = total > 0 ? (count / total) * 100 : 0;
+    const row = el('div', { class: 'goal-row' });
+    row.appendChild(el('div', { class: 'goal-label' }, label));
+    row.appendChild(el('div', { class: 'goal-value' }, count.toLocaleString()));
+    const bar = el('div', { class: 'goal-bar' });
+    bar.appendChild(el('div', { class: 'goal-bar-fill', style: 'width:' + Math.min(pct, 100) + '%' }));
+    row.appendChild(bar);
+    row.appendChild(el('div', { class: 'goal-pct' }, fmtPct(pct)));
+    card.appendChild(row);
+  });
+  return card;
+}
+
+function renderWeeklyTrend(from, to) {
+  const card = el('div', { class: 'card mb-4' });
+  card.appendChild(el('div', { class: 'card-title' }, 'Weekly Trend'));
+  const weeks = weeklyBreakdownInRange(from, to);
+  if (weeks.length === 0) {
+    card.appendChild(el('div', { class: 'empty' }, el('div', { class: 'empty-sub' }, 'No weeks in range.')));
+    return card;
+  }
+  const wrap = el('div', { class: 'table-wrap' });
+  const table = el('table');
+  table.appendChild(el('thead', {}, el('tr', {},
+    el('th', {}, 'Week Of'),
+    el('th', {}, 'Hours'),
+    el('th', {}, 'Cold Emails'),
+    el('th', {}, 'Follow-Ups'),
+    el('th', {}, 'Replies'),
+    el('th', {}, 'Meetings'),
+    el('th', {}, 'Proposals'),
+    el('th', {}, '$ Closed'),
+    el('th', {}, 'Wtd. $ Added')
+  )));
+  const tbody = el('tbody');
+  weeks.forEach(w => {
+    const s = w.summary;
+    const tr = el('tr');
+    tr.appendChild(el('td', { class: 'tight mono text-sm' }, formatDateShort(w.monday)));
+    tr.appendChild(el('td', { class: 'num mono' }, s.totalHours.toFixed(1)));
+    tr.appendChild(el('td', { class: 'num mono' }, (s.outboundByType['o_email'] || 0).toLocaleString()));
+    tr.appendChild(el('td', { class: 'num mono' }, (s.outboundByType['o_followup'] || 0).toLocaleString()));
+    tr.appendChild(el('td', { class: 'num mono' }, s.activityCounts.reply.toLocaleString()));
+    tr.appendChild(el('td', { class: 'num mono' }, s.activityCounts.meeting.toLocaleString()));
+    tr.appendChild(el('td', { class: 'num mono' }, s.activityCounts.proposal.toLocaleString()));
+    tr.appendChild(el('td', { class: 'num mono' }, fmtDollars(s.wonValue)));
+    tr.appendChild(el('td', { class: 'num mono' }, fmtDollars(s.weightedAdded)));
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  card.appendChild(wrap);
+  if (weeks.length === 52) {
+    card.appendChild(el('div', { class: 'text-xs text-muted mt-2' }, 'Showing first 52 weeks of range. Narrow the range for more detail.'));
+  }
+  return card;
+}
+
+function renderProspectsInPeriod(from, to, summary) {
+  const card = el('div', { class: 'card mb-4' });
+  card.appendChild(el('div', { class: 'card-title' }, 'Prospects in Period'));
+
+  // New prospects created in range
+  const newOnes = summary.newProspects;
+  // Won and Lost in range (based on activity dates)
+  const wonProspectIds = new Set(summary.acts.filter(a => getActivityType(a.typeId)?.countsAs === 'won').map(a => a.prospectId));
+  const lostProspectIds = new Set(summary.acts.filter(a => getActivityType(a.typeId)?.countsAs === 'lost').map(a => a.prospectId));
+
+  const triRow = el('div', { class: 'grid grid-3 gap-4' });
+
+  // New
+  const newCol = el('div', {});
+  newCol.appendChild(el('div', { class: 'kpi-label mb-2' }, 'New (' + newOnes.length + ')'));
+  if (newOnes.length === 0) {
+    newCol.appendChild(el('div', { class: 'text-sm text-muted' }, 'None'));
+  } else {
+    newOnes.slice(0, 10).forEach(p => {
+      newCol.appendChild(el('div', { class: 'text-sm mb-2' },
+        el('strong', {}, p.name),
+        p.company ? el('span', { class: 'text-muted' }, ' · ' + p.company) : null
+      ));
+    });
+    if (newOnes.length > 10) newCol.appendChild(el('div', { class: 'text-xs text-muted' }, '+ ' + (newOnes.length - 10) + ' more'));
+  }
+  triRow.appendChild(newCol);
+
+  // Won
+  const wonCol = el('div', {});
+  wonCol.appendChild(el('div', { class: 'kpi-label mb-2' }, 'Closed Won (' + wonProspectIds.size + ')'));
+  if (wonProspectIds.size === 0) {
+    wonCol.appendChild(el('div', { class: 'text-sm text-muted' }, 'None'));
+  } else {
+    [...wonProspectIds].slice(0, 10).forEach(pid => {
+      const p = getProspect(pid);
+      if (!p) return;
+      wonCol.appendChild(el('div', { class: 'text-sm mb-2' },
+        el('strong', {}, p.name),
+        el('span', { class: 'mono text-muted' }, ' · ' + fmtDollars(Number(p.dollarValue || 0)))
+      ));
+    });
+  }
+  triRow.appendChild(wonCol);
+
+  // Lost
+  const lostCol = el('div', {});
+  lostCol.appendChild(el('div', { class: 'kpi-label mb-2' }, 'Closed Lost (' + lostProspectIds.size + ')'));
+  if (lostProspectIds.size === 0) {
+    lostCol.appendChild(el('div', { class: 'text-sm text-muted' }, 'None'));
+  } else {
+    [...lostProspectIds].slice(0, 10).forEach(pid => {
+      const p = getProspect(pid);
+      if (!p) return;
+      lostCol.appendChild(el('div', { class: 'text-sm mb-2' },
+        el('strong', {}, p.name),
+        el('span', { class: 'mono text-muted' }, ' · ' + fmtDollars(Number(p.dollarValue || 0)))
+      ));
+    });
+  }
+  triRow.appendChild(lostCol);
+
+  card.appendChild(triRow);
+  return card;
+}
+
+function exportRangeDailyCSV(from, to) {
+  const rows = state.dailyLog.filter(e => inRange(e.date, from, to))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const headers = ['Date', 'Bucket', 'Client', 'Task', 'Output', 'Hours'];
+  state.outboundTypes.forEach(ot => headers.push(ot.name));
+  const csvRows = rows.map(e => {
+    const c = getClient(e.clientId)?.name || '';
+    const row = [e.date, e.bucket, c, e.task || '', e.output || '', e.hours || 0];
+    state.outboundTypes.forEach(ot => row.push((e.outbound && e.outbound[ot.id]) || 0));
+    return row;
+  });
+  downloadCSV([headers, ...csvRows], 'opsmirror-daily-' + from + '-to-' + to + '.csv');
+}
+
+function exportRangeActivitiesCSV(from, to) {
+  const rows = state.activities.filter(a => inRange(a.date, from, to))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const headers = ['Date', 'Type', 'Prospect', 'Company', 'DollarValue', 'Note'];
+  const csvRows = rows.map(a => {
+    const t = getActivityType(a.typeId);
+    const p = getProspect(a.prospectId);
+    return [a.date, t?.name || '', p?.name || '(deleted)', p?.company || '', a.dollarValue || 0, (a.note || '').replace(/\n/g, ' ')];
+  });
+  downloadCSV([headers, ...csvRows], 'opsmirror-activities-' + from + '-to-' + to + '.csv');
+}
+
+function exportPeriodSummaryCSV(from, to, summary) {
+  const rows = [
+    ['Metric', 'Value'],
+    ['Period Start', from],
+    ['Period End', to],
+    ['Days in Period', summary.totalDays || 'all'],
+    ['Days Logged', summary.datesLogged.size],
+    ['', ''],
+    ['Total Hours', summary.totalHours.toFixed(2)]
+  ];
+  Object.entries(summary.hoursByBucket).forEach(([k, v]) => rows.push(['Hours: ' + k, v.toFixed(2)]));
+  rows.push(['', '']);
+  Object.entries(summary.hoursByClient).forEach(([k, v]) => rows.push(['Hours: ' + k + ' (client)', v.toFixed(2)]));
+  rows.push(['', ''], ['Total Outbound', summary.totalOutbound]);
+  state.outboundTypes.forEach(ot => rows.push(['Outbound: ' + ot.name, summary.outboundByType[ot.id] || 0]));
+  rows.push(['', '']);
+  rows.push(['Replies Received', summary.activityCounts.reply]);
+  rows.push(['Meetings Booked', summary.activityCounts.meeting]);
+  rows.push(['Meetings Held', summary.activityCounts.meeting_held]);
+  rows.push(['Proposals Sent', summary.activityCounts.proposal]);
+  rows.push(['Proposals $ Value', summary.proposalsValue.toFixed(2)]);
+  rows.push(['Closed Won (count)', summary.activityCounts.won]);
+  rows.push(['Closed Won $', summary.wonValue.toFixed(2)]);
+  rows.push(['Closed Lost (count)', summary.activityCounts.lost]);
+  rows.push(['Closed Lost $', summary.lostValue.toFixed(2)]);
+  rows.push(['Weighted $ Added', summary.weightedAdded.toFixed(2)]);
+  rows.push(['', '']);
+  rows.push(['Reply Rate %', summary.replyRate.toFixed(1)]);
+  rows.push(['Meeting Rate %', summary.meetingRate.toFixed(1)]);
+  rows.push(['Proposal Rate %', summary.proposalRate.toFixed(1)]);
+  rows.push(['Close Rate %', summary.closeRate.toFixed(1)]);
+  rows.push(['', '']);
+  rows.push(['New Prospects Added', summary.newProspects.length]);
+  downloadCSV(rows, 'opsmirror-summary-' + from + '-to-' + to + '.csv');
 }
 
 /* ============================================================
@@ -1953,6 +2520,8 @@ function renderDataSettings() {
 }
 
 function exportJSON() {
+  state.lastExportedAt = todayISO();
+  saveState();
   const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1960,7 +2529,7 @@ function exportJSON() {
   a.download = 'opsmirror-' + todayISO() + '.json';
   a.click();
   URL.revokeObjectURL(url);
-  toast('Exported');
+  toast('Exported and backup timestamp saved');
 }
 
 function exportDailyCSV() {
@@ -2303,6 +2872,7 @@ function openProspectModal(prospectId) {
   saveBtn.addEventListener('click', () => {
     if (!nameI.value.trim()) { alert('Name is required'); return; }
     const probVal = probI.value === '' ? null : parseInt(probI.value, 10);
+    const prevStageId = editing ? editing.stageId : null;
     const prospect = {
       id: data.id,
       name: nameI.value.trim(),
@@ -2312,8 +2882,19 @@ function openProspectModal(prospectId) {
       probabilityOverride: (probVal != null && !isNaN(probVal)) ? probVal : null,
       source: srcI.value.trim(),
       createdAt: data.createdAt || todayISO(),
-      notes: notesI.value
+      notes: notesI.value,
+      stageHistory: editing && editing.stageHistory ? [...editing.stageHistory] : []
     };
+    // If editing and stage changed, log the transition
+    if (editing && prevStageId !== prospect.stageId) {
+      prospect.stageHistory.push({
+        fromStageId: prevStageId,
+        toStageId: prospect.stageId,
+        date: todayISO(),
+        activityId: null,
+        manual: true
+      });
+    }
     if (editing) {
       const idx = state.prospects.findIndex(p => p.id === prospect.id);
       state.prospects[idx] = prospect;
@@ -2408,7 +2989,16 @@ function openActivityModal(prospectId) {
     state.activities.push(activity);
     if (advS.value) {
       const p = getProspect(prospS.value);
-      if (p) p.stageId = advS.value;
+      if (p && p.stageId !== advS.value) {
+        if (!p.stageHistory) p.stageHistory = [];
+        p.stageHistory.push({
+          fromStageId: p.stageId,
+          toStageId: advS.value,
+          date: dateI.value,
+          activityId: activity.id
+        });
+        p.stageId = advS.value;
+      }
     }
     saveState();
     closeModal();
