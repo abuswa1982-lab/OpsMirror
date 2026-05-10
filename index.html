@@ -92,6 +92,33 @@ label {
   margin-bottom: 6px;
 }
 
+/* Backup buttons in sidebar (added v2) */
+.brand-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+}
+.btn-bk {
+  padding: 5px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  border: 1px solid;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex: 1;
+  transition: background 0.15s ease;
+}
+.btn-bk-export { color: var(--green); border-color: var(--green-soft); }
+.btn-bk-export:hover { background: rgba(45, 80, 22, 0.10); }
+.btn-bk-import { color: var(--accent); border-color: var(--accent-soft); }
+.btn-bk-import:hover { background: rgba(139, 26, 26, 0.10); }
+
 /* App layout */
 .app {
   display: grid;
@@ -575,6 +602,10 @@ hr.divider { border: none; border-top: 1px solid var(--border-soft); margin: 16p
     <div class="brand">
       <div class="brand-mark">Ops<span class="accent">Mirror</span></div>
       <div class="brand-sub">by Modonix</div>
+      <div class="brand-actions">
+        <button class="btn-bk btn-bk-export" onclick="exportJSON()" title="Download backup JSON">⬇ Backup</button>
+        <button class="btn-bk btn-bk-import" onclick="importJSON()" title="Restore from backup JSON">⬆ Restore</button>
+      </div>
     </div>
 
     <div id="nav" class="nav">
